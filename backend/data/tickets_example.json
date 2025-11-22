@@ -1,0 +1,66 @@
+{
+  "550e8400-e29b-41d4-a716-446655440000": {
+    "ticket_id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "en cours",
+    "created_at": "2024-01-15T10:30:00.000000",
+    "messages": [
+      {
+        "id": "msg-001",
+        "role": "user",
+        "content": "Bonjour, j'ai un problème avec ma connexion internet",
+        "timestamp": "2024-01-15T10:30:00.000000"
+      },
+      {
+        "id": "msg-002",
+        "role": "assistant",
+        "content": "Bonjour,\n\nJe comprends votre problème de connexion internet. Je vais vous aider à le résoudre.\n\nPouvez-vous me donner plus de détails sur le problème que vous rencontrez ? Par exemple :\n- Est-ce que votre box est allumée (voyants) ?\n- Avez-vous accès à internet sur d'autres appareils ?\n- Depuis quand le problème existe-t-il ?\n\nEn attendant, vous pouvez essayer de redémarrer votre box en la débranchant pendant 30 secondes puis en la rebranchant.\n\n-- Agent Free",
+        "timestamp": "2024-01-15T10:30:15.123456"
+      },
+      {
+        "id": "msg-003",
+        "role": "user",
+        "content": "La box est allumée mais je n'ai pas internet sur mon ordinateur",
+        "timestamp": "2024-01-15T10:32:00.000000"
+      },
+      {
+        "id": "msg-004",
+        "role": "assistant",
+        "content": "D'accord, je vois. Si la box est allumée mais que vous n'avez pas internet sur votre ordinateur, cela peut venir de plusieurs choses :\n\n1. **Problème de connexion réseau local** : Vérifiez que votre ordinateur est bien connecté au WiFi ou au câble Ethernet\n2. **Paramètres réseau** : Essayez de vous reconnecter au WiFi ou débrancher/rebrancher le câble\n3. **Conflit d'IP** : Un redémarrage de la box peut résoudre le problème\n\nAvez-vous essayé de redémarrer votre box ? Si oui, est-ce que le problème persiste ?\n\n-- Agent Free",
+        "timestamp": "2024-01-15T10:32:20.789012"
+      }
+    ]
+  },
+  "660e8400-e29b-41d4-a716-446655440001": {
+    "ticket_id": "660e8400-e29b-41d4-a716-446655440001",
+    "status": "fermé",
+    "created_at": "2024-01-14T14:20:00.000000",
+    "messages": [
+      {
+        "id": "msg-101",
+        "role": "user",
+        "content": "Je veux des informations sur les offres Free",
+        "timestamp": "2024-01-14T14:20:00.000000"
+      },
+      {
+        "id": "msg-102",
+        "role": "assistant",
+        "content": "Bonjour,\n\nJe serais ravi de vous présenter nos offres ! Free propose plusieurs types de services :\n\n**Internet et Box** :\n- Freebox Révolution, Delta, Pop\n- Débits jusqu'à 8 Gb/s en fibre\n\n**Mobile** :\n- Forfaits sans engagement à partir de 2,99€/mois\n- Forfaits 4G/5G avec appels et SMS illimités\n\n**TV** :\n- Plus de 200 chaînes incluses\n- Replay et enregistrement\n\nQuel type d'offre vous intéresse le plus ? Je peux vous donner plus de détails sur celle qui vous convient.\n\n-- Agent Free",
+        "timestamp": "2024-01-14T14:20:18.456789"
+      },
+      {
+        "id": "msg-103",
+        "role": "user",
+        "content": "Merci, j'ai les informations dont j'avais besoin",
+        "timestamp": "2024-01-14T14:25:00.000000"
+      },
+      {
+        "id": "msg-104",
+        "role": "assistant",
+        "content": "Parfait ! Je suis content d'avoir pu vous aider.\n\nN'hésitez pas à revenir vers nous si vous avez d'autres questions ou si vous souhaitez souscrire à une de nos offres.\n\nBonne journée !\n\n-- Agent Free",
+        "timestamp": "2024-01-14T14:25:15.123456"
+      }
+    ]
+  }
+}
+
+
