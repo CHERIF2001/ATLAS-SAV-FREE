@@ -19,13 +19,12 @@ from app.core.config import (
 from app.core.container import services
 from app.core.websocket import manager
 
-# Routers imports
+#  import des routes
 from app.routers import health
 from app.routers.public import tickets as public_tickets
 from app.routers.private import tickets as private_tickets
 from app.routers.private import auth as private_auth
 
-# Services imports
 from app.services.storage.json_store import JSONStorage
 from app.services.storage.dynamodb_store import DynamoDBStorage
 from app.services.ai.mistral import MistralClient
@@ -47,7 +46,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API routes
+# inclusion des routes
 app.include_router(health.router, tags=["health"])
 app.include_router(public_tickets.router)
 app.include_router(private_tickets.router)
@@ -57,7 +56,7 @@ app.include_router(private_auth.router)
 async def startup():
     logger.info("Starting Freeda SAV backend...")
     
-    # 1. Initialize Storage
+    # 1. Initialisation du stockage
     if STORAGE_TYPE == "dynamodb":
         logger.info("Using DynamoDB storage")
         services.storage = DynamoDBStorage(table_name=DYNAMODB_TABLE_TICKETS, region=AWS_REGION)
@@ -67,11 +66,10 @@ async def startup():
         if not TICKETS_FILE.exists():
             TICKETS_FILE.write_text("{}", encoding="utf-8")
 
-    # 2. Initialize Mistral Client
+    # 2. Initialisation du client MISTRAL
     if MISTRAL_API_KEY:
         try:
-            # Simple initialization without model discovery for now to keep it clean
-            # In a real app, we might want to keep the discovery logic
+
             services.mistral_client = MistralClient(
                 api_key=MISTRAL_API_KEY, 
                 api_url=MISTRAL_API_URL, 
@@ -82,18 +80,18 @@ async def startup():
             logger.exception("Failed to initialize Mistral client: %s", e)
             services.mistral_client = None
     
-    # 3. Initialize Analytics
+    # 3. Initialisation de l'analyse
     if ENABLE_AUTO_ANALYTICS and services.mistral_client:
         services.analytics_service = AnalyticsService(services.mistral_client)
         logger.info("Analytics service enabled")
     else:
         logger.info("Analytics service disabled")
     
-    # 4. Initialize Export
+    # 4. IInitialisation de l'export
     services.export_service = ExportService(services.storage)
     logger.info("Export service initialized")
     
-    # 5. Initialize RAG
+    # 5. IInitialisation du RAG
     if ENABLE_RAG and MISTRAL_API_KEY:
         try:
             services.rag_service = RAGService(
@@ -108,7 +106,7 @@ async def startup():
                 if knowledge_file.exists():
                     logger.info(f"Loading initial knowledge from {knowledge_file}...")
                     await services.rag_service.load_from_file(str(knowledge_file))
-                    stats = services.rag_service.get_stats() # Update stats
+                    stats = services.rag_service.get_stats() # modification des états
             
             logger.info(f"RAG service enabled: {stats['total_documents']} documents loaded")
         except Exception as e:
@@ -132,7 +130,7 @@ async def shutdown():
 async def websocket_endpoint(websocket: WebSocket, ticket_id: str):
     await manager.connect(websocket, ticket_id)
     try:
-        # Send initial ticket state if exists
+        # Envoi des tickets initials si existe
         try:
             if services.storage and await services.storage.ticket_exists(ticket_id):
                 ticket = await services.storage.get_ticket(ticket_id)
@@ -142,8 +140,7 @@ async def websocket_endpoint(websocket: WebSocket, ticket_id: str):
 
         while True:
             data = await websocket.receive_text()
-            # We don't expect messages from client via WS for now (we use REST POST)
-            # But we keep connection open
+ 
     except WebSocketDisconnect:
         manager.disconnect(websocket, ticket_id)
     except Exception as e:
