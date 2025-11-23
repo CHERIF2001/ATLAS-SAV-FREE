@@ -2,7 +2,7 @@
 
 Dashboard professionnel d'analyse de tweets clients avec enrichissement LLM et visualisations avancées.
 
-##  Fonctionnalités
+## 🚀 Fonctionnalités
 
 ### Pipeline de traitement
 - ✅ Nettoyage complet des tweets (RT, doublons, URLs, mentions, emojis)
@@ -15,11 +15,11 @@ Dashboard professionnel d'analyse de tweets clients avec enrichissement LLM et v
 - ✅ Sauvegarde incrémentale et reprise en cas d'erreur
 
 ### Dashboard Streamlit
--  **Dashboard général**: KPIs, évolution temporelle, nuage de mots, heatmaps
-- **Analyse par motif**: Matrices croisées, volumes, urgence et churn par thème
-- **Liste des tweets**: Tableau interactif avec filtres avancés et badges colorés
+- 📊 **Dashboard général**: KPIs, évolution temporelle, nuage de mots, heatmaps
+- 🎯 **Analyse par motif**: Matrices croisées, volumes, urgence et churn par thème
+- 📋 **Liste des tweets**: Tableau interactif avec filtres avancés et badges colorés
 
-##  Structure du projet
+## 📁 Structure du projet
 
 ```
 ATLAS-analytics/
@@ -77,7 +77,7 @@ Placez votre fichier CSV de tweets dans `data/raw/free_tweet_export.csv`
 
 Le CSV doit contenir au minimum une colonne avec le texte des tweets (par défaut `full_text`).
 
-## Utilisation
+## 📊 Utilisation
 
 ### Exécuter le pipeline complet
 
@@ -135,7 +135,7 @@ Modifiez `src/config.py` pour ajuster :
 - Couleurs du dashboard
 - Colonnes attendues dans le CSV
 
-##  Notes importantes
+## 📝 Notes importantes
 
 ### Performance
 - Le traitement LLM peut être long pour de gros volumes
@@ -152,7 +152,7 @@ Modifiez `src/config.py` pour ajuster :
 - Les réponses LLM brutes sont conservées pour debug
 - Les colonnes enrichies: `motif`, `sentiment`, `urgence`, `risque_churn`, `is_churn_risk`
 
-##  Dépannage
+## 🐛 Dépannage
 
 ### Erreur "MISTRAL_API_KEY non définie"
 - Vérifiez que le fichier `.env` existe et contient la clé
@@ -171,11 +171,11 @@ python -m spacy download fr_core_news_sm
 - Vérifiez que le pipeline a été exécuté
 - Le fichier doit être dans `data/processed/tweets_enriched.parquet`
 
-## Licence
+## 📄 Licence
 
 Ce projet est fourni à des fins éducatives et professionnelles.
 
 ## 👥 Auteur
 
-Projet développé par l'équipe SOCADY pour l'analyse de tweets clients de Free.
+Projet développé pour l'analyse de tweets clients Free.
 
