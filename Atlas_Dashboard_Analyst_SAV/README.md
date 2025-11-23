@@ -15,9 +15,9 @@ Dashboard professionnel d'analyse de tweets clients avec enrichissement LLM et v
 - ✅ Sauvegarde incrémentale et reprise en cas d'erreur
 
 ### Dashboard Streamlit
-- 📊 **Dashboard général**: KPIs, évolution temporelle, nuage de mots, heatmaps
-- 🎯 **Analyse par motif**: Matrices croisées, volumes, urgence et churn par thème
-- 📋 **Liste des tweets**: Tableau interactif avec filtres avancés et badges colorés
+-  **Dashboard général**: KPIs, évolution temporelle, nuage de mots, heatmaps
+- **Analyse par motif**: Matrices croisées, volumes, urgence et churn par thème
+- **Liste des tweets**: Tableau interactif avec filtres avancés et badges colorés
 
 ##  Structure du projet
 
@@ -77,7 +77,7 @@ Placez votre fichier CSV de tweets dans `data/raw/free_tweet_export.csv`
 
 Le CSV doit contenir au minimum une colonne avec le texte des tweets (par défaut `full_text`).
 
-## 📊 Utilisation
+## Utilisation
 
 ### Exécuter le pipeline complet
 
@@ -135,7 +135,7 @@ Modifiez `src/config.py` pour ajuster :
 - Couleurs du dashboard
 - Colonnes attendues dans le CSV
 
-## 📝 Notes importantes
+##  Notes importantes
 
 ### Performance
 - Le traitement LLM peut être long pour de gros volumes
@@ -171,7 +171,7 @@ python -m spacy download fr_core_news_sm
 - Vérifiez que le pipeline a été exécuté
 - Le fichier doit être dans `data/processed/tweets_enriched.parquet`
 
-## 📄 Licence
+## Licence
 
 Ce projet est fourni à des fins éducatives et professionnelles.
 
