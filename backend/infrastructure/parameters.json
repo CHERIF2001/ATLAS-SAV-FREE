@@ -1,0 +1,42 @@
+[
+    {
+        "ParameterKey": "Environment",
+        "ParameterValue": "production"
+    },
+    {
+        "ParameterKey": "VpcId",
+        "ParameterValue": "vpc-XXXXXXXX"
+    },
+    {
+        "ParameterKey": "SubnetIds",
+        "ParameterValue": "subnet-XXXXX,subnet-YYYYY"
+    },
+    {
+        "ParameterKey": "MistralApiKey",
+        "ParameterValue": "VOTRE_CLE_MISTRAL_ICI"
+    },
+    {
+        "ParameterKey": "DynamoDBTableName",
+        "ParameterValue": "freeda-tickets-production"
+    },
+    {
+        "ParameterKey": "ContainerImage",
+        "ParameterValue": "SERA_REMPLI_AUTOMATIQUEMENT"
+    },
+    {
+        "ParameterKey": "DesiredCount",
+        "ParameterValue": "2"
+    },
+    {
+        "ParameterKey": "ContainerCpu",
+        "ParameterValue": "512"
+    },
+    {
+        "ParameterKey": "ContainerMemory",
+        "ParameterValue": "1024"
+    },
+    {
+        "ParameterKey": "AllowedOrigins",
+        "ParameterValue": "*"
+    }
+]

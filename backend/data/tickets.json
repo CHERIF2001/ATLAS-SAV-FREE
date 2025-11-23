@@ -1305,5 +1305,155 @@
       }
     ],
     "public": true
+  },
+  "FRE-3D963783": {
+    "ticket_id": "FRE-3D963783",
+    "initial_message": "Problème réseau",
+    "customer_name": "Anonyme",
+    "channel": "chat",
+    "status": "fermé",
+    "created_at": "2025-11-22T09:15:53.488586",
+    "messages": [
+      {
+        "message_id": "64382b85-dd1f-41ea-ab30-f13eda79769c",
+        "content": "Problème réseau",
+        "author": "Client",
+        "timestamp": "2025-11-22T09:15:53.488586",
+        "type": "client"
+      },
+      {
+        "message_id": "83fc2c11-02fd-48b1-bb8e-0d94c2cdfbc2",
+        "content": "Je prends note de votre demande. Un agent va vous repondre sous peu.",
+        "author": "Assistant Free",
+        "timestamp": "2025-11-22T09:15:53.493681",
+        "type": "assistant"
+      },
+      {
+        "message_id": "6e6fa733-e1bf-4b7e-9fdd-28077350eb08",
+        "content": "je n'arrive pas à me connecter au wifi",
+        "author": "Anonyme",
+        "timestamp": "2025-11-22T09:16:17.738415",
+        "type": "client"
+      },
+      {
+        "message_id": "237b0fef-4471-4784-8a2a-e892f9564c8d",
+        "content": "Pour récupérer vos identifiants ou réinitialiser votre mot de passe, rendez-vous sur la page de connexion de l'Espace Abonné et cliquez sur 'Mot de passe oublié'.",
+        "author": "Assistant Free",
+        "timestamp": "2025-11-22T09:16:17.788686",
+        "type": "assistant"
+      },
+      {
+        "message_id": "49b35613-f73e-482d-89d0-9f87a976d741",
+        "content": "Aidez moi ou je quitte votre réseau",
+        "author": "Anonyme",
+        "timestamp": "2025-11-22T09:16:43.223667",
+        "type": "client"
+      }
+    ],
+    "public": true,
+    "closed_at": "2025-11-22T09:35:27.597678",
+    "resolution_duration": 1174
+  },
+  "FRE-B9CC0F44": {
+    "ticket_id": "FRE-B9CC0F44",
+    "initial_message": "Problème réseau",
+    "customer_name": "Anonyme",
+    "channel": "chat",
+    "status": "fermé",
+    "created_at": "2025-11-22T09:35:42.400076",
+    "messages": [
+      {
+        "message_id": "417a241d-092c-4822-9b93-4de24b174ec5",
+        "content": "Problème réseau",
+        "author": "Client",
+        "timestamp": "2025-11-22T09:35:42.400076",
+        "type": "client"
+      },
+      {
+        "message_id": "65db8d25-331a-4cc8-ab2c-08be996dec90",
+        "content": "Je suis vraiment désolé d'apprendre que vous rencontrez des difficultés avec votre connexion réseau. Pour mieux vous aider, pourriez-vous me préciser :\n- **Est-ce que votre connexion internet est totalement coupée** (aucun appareil ne fonctionne) ?\n- **Ou est-ce que le problème concerne uniquement le WiFi** (certains appareils se déconnectent ou ont un signal faible) ?\n\nEn attendant, voici quelques vérifications rapides que vous pouvez faire :\n1. **Vérifiez les voyants de votre box** : Le voyant *Internet* doit être **vert fixe** (ou blanc selon le modèle). S’il clignote en **rouge/orange**, essayez de **redémarrer la box** en la débranchant 30 secondes, puis attendez 5 minutes pour qu’elle redémarre complètement.\n2. **Testez avec un câble Ethernet** (si possible) : Branchez un ordinateur directement à la box pour voir si le problème vient du WiFi ou de la connexion globale.\n\nDites-moi ce que vous observez, et je vous guiderai étape par étape pour résoudre le problème.\n\n--\nAgent Free\n-- Agent Free",
+        "author": "Assistant Free",
+        "timestamp": "2025-11-22T09:35:47.454504",
+        "type": "assistant"
+      }
+    ],
+    "public": true,
+    "analytics": {
+      "sentiment": "negatif",
+      "category": "technique",
+      "urgency": "haute",
+      "churn_risk": 50,
+      "summary": "Problème réseau non précisé (potentielle coupure)",
+      "next_action": "Diagnostic technique immédiat : vérifier statut ligne, relancer tests réseau, proposer dépannage sou",
+      "analyzed_at": "2025-11-22T09:35:44.321070Z"
+    },
+    "closed_at": "2025-11-22T09:42:46.466475",
+    "resolution_duration": 424
+  },
+  "FRE-B24F02C5": {
+    "ticket_id": "FRE-B24F02C5",
+    "initial_message": "Bonjour j'ai un soucisavec ma box elle n s'allume plus",
+    "customer_name": "Anonyme",
+    "channel": "chat",
+    "status": "fermé",
+    "created_at": "2025-11-22T09:44:36.859787",
+    "messages": [
+      {
+        "message_id": "6164dadc-5171-4f8b-bcf8-9859a16542ad",
+        "content": "Bonjour j'ai un soucisavec ma box elle n s'allume plus",
+        "author": "Client",
+        "timestamp": "2025-11-22T09:44:36.859787",
+        "type": "client"
+      },
+      {
+        "message_id": "6a99fdc6-1a01-4619-aaf9-1237fee98936",
+        "content": "Bonjour ! Je suis l'assistant virtuel de Free. Comment puis-je vous aider aujourd'hui ?",
+        "author": "Assistant Free",
+        "timestamp": "2025-11-22T09:44:39.800565",
+        "type": "assistant"
+      },
+      {
+        "message_id": "5ebca59f-3407-48d8-a96d-9ca61c3acf23",
+        "content": "Ma box ne s'allume plus",
+        "author": "Anonyme",
+        "timestamp": "2025-11-22T09:45:44.168653",
+        "type": "client",
+        "sentiment": "negatif"
+      },
+      {
+        "message_id": "7995656b-919c-4842-b671-a5b8c54020b7",
+        "content": "Je comprends à quel point cette situation peut être frustrante, surtout si cela impacte votre connexion internet et vos services. Voici les étapes que nous allons suivre ensemble pour résoudre ce problème rapidement :\n\n1. **Vérification des branchements** :\n   - Assurez-vous que le câble d’alimentation est bien branché à la fois sur la box et sur la prise électrique.\n   - Essayez une autre prise électrique pour éliminer un éventuel problème de courant.\n   - Si vous utilisez une multiprise, branchez la box directement sur une prise murale.\n\n2. **Redémarrage forcé** :\n   - Débranchez le câble d’alimentation de la box.\n   - Attendez **30 secondes** avant de le rebrancher.\n   - Patientiez 2 à 3 minutes pour que la box redémarre complètement.\n\n3. **Vérification des voyants** :\n   - Si la box s’allume mais que certains voyants clignotent anormalement (ex. : rouge fixe ou clignotant), cela peut indiquer un problème spécifique. Dans ce cas, décrivez-moi leur comportement.\n\n4. **Test avec un autre chargeur** (si possible) :\n   - Si vous avez un chargeur compatible (même voltage), essayez de l’utiliser pour vérifier si le problème vient de l’alimentation.\n\n5. **Problème persistant ?** :\n   - Si après ces vérifications la box ne s’allume toujours pas, il pourrait s’agir d’un dysfonctionnement matériel. Dans ce cas, je peux vous proposer :\n     - Un **diagnostic à distance** (si la box réagit partiellement).\n     - Un **échange de matériel** si nécessaire (je peux initier la procédure pour vous).\n\nPour aller plus vite, pouvez-vous me confirmer :\n- Le modèle de votre box (ex. : Freebox Delta, Freebox Pop, Freebox Révolution, etc.) ?\n- Avez-vous remarqué un événement particulier avant ce dysfonctionnement (ex. : coupure de courant, orage, manipulation) ?\n\nJe reste à votre disposition pour vous accompagner jusqu’à la résolution du problème.\n\n-- Agent Free",
+        "author": "Assistant Free",
+        "timestamp": "2025-11-22T09:45:57.060834",
+        "type": "assistant"
+      },
+      {
+        "message_id": "669658c7-f4dc-4722-96c7-d78e68d67024",
+        "content": "Merci tout es réglé",
+        "author": "Anonyme",
+        "timestamp": "2025-11-22T09:49:23.751991",
+        "type": "client",
+        "sentiment": "positif"
+      },
+      {
+        "message_id": "1c59da73-8030-4651-b84e-38e6a9b43282",
+        "content": "Je vous en prie ! Ravi d'avoir pu vous aider. Avez-vous d'autres questions ?",
+        "author": "Assistant Free",
+        "timestamp": "2025-11-22T09:49:24.795869",
+        "type": "assistant"
+      }
+    ],
+    "public": true,
+    "analytics": {
+      "sentiment": "positif",
+      "category": "technique",
+      "urgency": "basse",
+      "churn_risk": 0,
+      "summary": "Box ne s’allumait plus – résolu après vérifications",
+      "next_action": "Clôturer le ticket avec confirmation de satisfaction (enquête post-résolution si applicable).",
+      "analyzed_at": "2025-11-22T09:49:24.777115Z"
+    },
+    "closed_at": "2025-11-22T10:01:09.382643",
+    "resolution_duration": 992
   }
 }

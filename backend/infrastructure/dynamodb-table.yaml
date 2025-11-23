@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DynamoDB table for Freeda Support App tickets'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - development
+      - staging
+      - production
+    Description: Environment name
+
+Resources:
+  FreedaTicketsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'freeda-tickets-${Environment}'
+      BillingMode: PAY_PER_REQUEST  # Serverless, pas de provisioning nécessaire
+      
+      # Primary Key
+      AttributeDefinitions:
+        - AttributeName: ticket_id
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: channel
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: ticket_id
+          KeyType: HASH  # Partition key
+      
+      # Global Secondary Indexes pour filtres performants
+      GlobalSecondaryIndexes:
+        # Index pour filtrer par statut et trier par date
+        - IndexName: status-created_at-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL  # Inclure tous les attributs
+        
+        # Index pour filtrer par canal et trier par date
+        - IndexName: channel-created_at-index
+          KeySchema:
+            - AttributeName: channel
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      
+      # Point-in-time recovery pour backup automatique
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      
+      # Encryption at rest
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+      
+      # Tags
+      Tags:
+        - Key: Application
+          Value: Freeda
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # Alarme CloudWatch pour surveiller les erreurs
+  TableErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'freeda-dynamodb-errors-${Environment}'
+      AlarmDescription: Alert when DynamoDB has errors
+      MetricName: UserErrors
+      Namespace: AWS/DynamoDB
+      Statistic: Sum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: TableName
+          Value: !Ref FreedaTicketsTable
+
+Outputs:
+  TableName:
+    Description: Name of the DynamoDB table
+    Value: !Ref FreedaTicketsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-TableName'
+  
+  TableArn:
+    Description: ARN of the DynamoDB table
+    Value: !GetAtt FreedaTicketsTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-TableArn'
+  
+  TableStreamArn:
+    Description: Stream ARN of the DynamoDB table
+    Value: !GetAtt FreedaTicketsTable.StreamArn
+    Export:
+      Name: !Sub '${AWS::StackName}-TableStreamArn'
