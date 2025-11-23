@@ -1,181 +1,94 @@
-# ATLAS Analytics - Analyse de Tweets Free
+# ATLAS Dashboard Analyst SAV
 
-Dashboard professionnel d'analyse de tweets clients avec enrichissement LLM et visualisations avancées.
+**Outil de supervision et d'analyse des données SAV Free.**
 
-## 🚀 Fonctionnalités
+Ce tableau de bord permet aux analystes de visualiser les tendances, de surveiller la qualité des réponses de l'IA et d'explorer les données enrichies (sentiments, motifs de churn, pics d'activité).
 
-### Pipeline de traitement
-- ✅ Nettoyage complet des tweets (RT, doublons, URLs, mentions, emojis)
-- ✅ **Filtrage automatique des tweets Free** (exclusion des comptes contenant "free")
-- ✅ Détection automatique de langue et traduction vers français
-- ✅ Normalisation et préprocessing avec spaCy (lemmatisation, stopwords)
-- ✅ Enrichissement LLM avec Mistral (motif, sentiment, urgence, risque churn)
-- ✅ Parsing sécurisé des réponses LLM avec fallback intelligent
-- ✅ Traitement par batches avec retry automatique
-- ✅ Sauvegarde incrémentale et reprise en cas d'erreur
+---
 
-### Dashboard Streamlit
-- 📊 **Dashboard général**: KPIs, évolution temporelle, nuage de mots, heatmaps
-- 🎯 **Analyse par motif**: Matrices croisées, volumes, urgence et churn par thème
-- 📋 **Liste des tweets**: Tableau interactif avec filtres avancés et badges colorés
+## Fonctionnalités Clés
 
-## 📁 Structure du projet
+- **📊 Visualisation de Données** : Graphiques interactifs (Histogrammes, Heatmaps, Nuages de mots) pour comprendre les volumes et les motifs.
+- **🧠 Analyse IA** : Pipeline d'enrichissement utilisant Mistral AI pour classifier les tweets et détecter les sentiments.
+- **🔍 Exploration** : Interface de filtrage avancée pour isoler des segments spécifiques (ex: "Clients mécontents le week-end").
+- **📉 Détection de Churn** : Analyse spécifique des menaces de résiliation.
 
-```
-ATLAS-analytics/
-├── data/
-│   ├── raw/              # Fichiers CSV bruts
-│   └── processed/        # Données enrichies (parquet)
-├── src/
-│   ├── cleaning.py       # Nettoyage et préprocessing
-│   ├── llm_classification.py  # Classification LLM
-│   ├── parse_llm_outputs.py   # Parsing sécurisé
-│   ├── pipeline_enrichment.py # Pipeline complet
-│   ├── utils.py          # Utilitaires
-│   └── config.py         # Configuration
-├── app/
-│   ├── streamlit_app.py  # App principale
-│   ├── pages/
-│   │   ├── 01_Dashboard.py
-│   │   ├── 02_Analyse_par_motif.py
-│   │   └── 03_Liste_des_tweets.py
-│   └── assets/
-│       └── free_logo.png
-├── main.py               # Script d'exécution
-├── requirements.txt
-└── README.md
-```
+---
 
-## 🛠️ Installation
+## Architecture Technique
 
-### 1. Cloner le projet et installer les dépendances
+### Frontend
+- **Framework** : React 18 + TypeScript
+- **Build** : Vite
+- **UI** : TailwindCSS + Shadcn/UI (Composants `ui/`)
+- **Charts** : Recharts (supposé) / Composants personnalisés
+
+### Backend / Pipeline
+- **Langage** : Python 3.9+
+- **Logique** : Scripts d'ETL et d'enrichissement (`pipeline_enrichment.py`)
+- **IA** : Client Mistral AI pour la classification (`llm_classification.py`)
+- **Données** : Traitement de fichiers Parquet/CSV
+
+---
+
+## Guide d'Installation
+
+### 1. Backend & Pipeline Python
 
 ```bash
+# À la racine du dossier Dashboard
+python -m venv venv
+# Windows :
+.\venv\Scripts\activate
+# Mac/Linux :
+source venv/bin/activate
+
+# Installation des dépendances
 pip install -r requirements.txt
-```
 
-### 2. Installer le modèle spaCy français
-
-```bash
-python -m spacy download fr_core_news_sm
-```
-
-### 3. Configuration de l'API Mistral
-
-Créez un fichier `.env` à la racine du projet :
-
-```env
-MISTRAL_API_KEY=votre_clé_api_mistral
-MISTRAL_MODEL=mistral-medium-latest
-```
-
-Obtenez votre clé API sur [Mistral AI](https://console.mistral.ai/)
-
-### 4. Préparer les données
-
-Placez votre fichier CSV de tweets dans `data/raw/free_tweet_export.csv`
-
-Le CSV doit contenir au minimum une colonne avec le texte des tweets (par défaut `full_text`).
-
-## 📊 Utilisation
-
-### Exécuter le pipeline complet
-
-```bash
+# Lancer le pipeline d'enrichissement (exemple)
 python main.py
 ```
 
-Options disponibles :
-- `--input`: Chemin vers le fichier CSV d'entrée
-- `--output`: Chemin vers le fichier de sortie
-- `--checkpoint`: Chemin vers le fichier checkpoint
-- `--text-col`: Nom de la colonne texte (défaut: `full_text`)
-
-Exemple :
-```bash
-python main.py --input data/raw/mes_tweets.csv --text-col tweet_text
-```
-
-### Lancer le dashboard Streamlit
+### 2. Frontend React
 
 ```bash
-streamlit run app/streamlit_app.py
+cd frontend
+
+# Installation
+npm install
+
+# Lancement serveur de dev
+npm run dev
+```
+> L'interface sera accessible sur `http://localhost:5173`
+
+---
+
+## Structure du Projet
+
+```
+Atlas_Dashboard_Analyst_SAV/
+├── backend/                 # Logique métier Python
+│   ├── services/            # Modules de nettoyage et classification
+│   └── ...
+├── frontend/                # Interface Utilisateur React
+│   ├── src/
+│   │   ├── components/      # Graphiques et filtres
+│   │   ├── pages/           # Pages (Analytics, Sentiment, Data)
+│   │   └── ui/              # Composants de base (Boutons, Cards...)
+│   └── ...
+├── tests/                   # Tests de robustesse et qualité
+└── main.py                  # Point d'entrée du script d'analyse
 ```
 
-Le dashboard sera accessible sur `http://localhost:8501`
+---
 
-## 🎨 Fonctionnalités du Dashboard
+## Tests
 
-### Page 1: Dashboard Général
-- **KPIs**: Total tweets, répartition sentiment, tweets urgents, risque churn
-- **Évolution temporelle**: Sentiments et churn par semaine
-- **Volumes**: Par jour et par semaine
-- **Répartition par thème**: Graphiques en barres
-- **Nuage de mots**: Mots-clés des tweets négatifs
-- **Heatmap**: Croisement motif × sentiment
+Le projet inclut une suite de tests pour valider la robustesse du pipeline IA :
 
-### Page 2: Analyse par Motif
-- **Matrice motif × sentiment**: Visualisation croisée
-- **Volumes par motif**: Graphiques comparatifs
-- **Urgence par motif**: Répartition des niveaux d'urgence
-- **Churn par motif**: Identification des thèmes à risque
-- **Détails par motif**: KPIs et évolution temporelle
-
-### Page 3: Liste des Tweets
-- **Tableau interactif**: Affichage HTML custom avec badges
-- **Filtres avancés**: Client, motif, sentiment, urgence, churn, date
-- **Export CSV**: Téléchargement des résultats filtrés
-
-## 🔧 Configuration
-
-Modifiez `src/config.py` pour ajuster :
-- Chemins des fichiers
-- Modèle Mistral utilisé
-- Taille des batches LLM
-- Couleurs du dashboard
-- Colonnes attendues dans le CSV
-
-## 📝 Notes importantes
-
-### Performance
-- Le traitement LLM peut être long pour de gros volumes
-- Les checkpoints permettent de reprendre en cas d'interruption
-- Les batches sont traités avec des pauses pour éviter les rate limits
-
-### Coûts API
-- L'utilisation de Mistral API génère des coûts
-- Surveillez votre consommation sur le dashboard Mistral
-- Utilisez `mistral-small` pour réduire les coûts (moins précis)
-
-### Données
-- Les données nettoyées sont sauvegardées en parquet (format efficace)
-- Les réponses LLM brutes sont conservées pour debug
-- Les colonnes enrichies: `motif`, `sentiment`, `urgence`, `risque_churn`, `is_churn_risk`
-
-## 🐛 Dépannage
-
-### Erreur "MISTRAL_API_KEY non définie"
-- Vérifiez que le fichier `.env` existe et contient la clé
-- Ou définissez la variable d'environnement directement
-
-### Erreur "Modèle spaCy non trouvé"
 ```bash
-python -m spacy download fr_core_news_sm
+# Lancer les tests
+pytest tests/
 ```
-
-### Erreur de traduction
-- Vérifiez votre connexion internet
-- Le module `deep-translator` utilise Google Translate (gratuit mais avec limites)
-
-### Dashboard ne charge pas les données
-- Vérifiez que le pipeline a été exécuté
-- Le fichier doit être dans `data/processed/tweets_enriched.parquet`
-
-## 📄 Licence
-
-Ce projet est fourni à des fins éducatives et professionnelles.
-
-## 👥 Auteur
-
-Projet développé pour l'analyse de tweets clients Free.
-
