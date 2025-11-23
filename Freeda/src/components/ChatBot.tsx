@@ -36,7 +36,10 @@ export default function ChatBot({ onBack }: ChatBotProps) {
       timestamp: new Date()
     }
   ]);
-  const [ticketId, setTicketId] = useState<string | null>(null);
+  const [ticketId, setTicketId] = useState<string | null>(() => {
+    // Restaurer le ticketId depuis localStorage au chargement
+    return localStorage.getItem('freeda_ticket_id');
+  });
   const [ticketStatus, setTicketStatus] = useState<'en cours' | 'fermé'>('en cours');
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -89,8 +92,13 @@ export default function ChatBot({ onBack }: ChatBotProps) {
     const wsUrl = API_BASE_URL.replace('http', 'ws') + `/ws/${ticketId}`;
     const ws = new WebSocket(wsUrl);
 
+    ws.onopen = () => {
+      console.log('WebSocket connecté, demande du snapshot...');
+      // Demander l'historique complet dès la connexion
+      ws.send(JSON.stringify({ type: 'request_snapshot' }));
+    };
+
     ws.onmessage = (event) => {
-      // Log brut pour debug : montre exactement ce que le backend envoie
       console.debug('WS RAW:', event.data);
       const data = JSON.parse(event.data);
 
@@ -104,21 +112,17 @@ export default function ChatBot({ onBack }: ChatBotProps) {
           isAnalyzing: false
         };
         setMessages(prev => {
-          // 1. Si le message existe déjà par ID (cas normal), on ne fait rien
+          // Si le message existe déjà par ID, on ne fait rien
           if (prev.some(m => m.id === msg.id)) return prev;
 
-          // 2. Si c'est un message utilisateur, on cherche un doublon optimiste récent
-          // pour remplacer le message temporaire par le message confirmé du serveur
+          // Si c'est un message utilisateur, chercher un doublon optimiste
           if (newMsg.isUser) {
             const now = new Date();
-            // On cherche le dernier message utilisateur identique ajouté récemment (< 10s)
-            // On parcourt en partant de la fin pour trouver le plus récent
             for (let i = prev.length - 1; i >= 0; i--) {
               const m = prev[i];
               if (m.isUser && m.text === newMsg.text && (now.getTime() - m.timestamp.getTime() < 10000)) {
-                // On a trouvé le message optimiste correspondant
                 const newMessages = [...prev];
-                newMessages[i] = newMsg; // Remplacer par la version serveur (avec le bon ID)
+                newMessages[i] = newMsg;
                 return newMessages;
               }
             }
@@ -130,18 +134,21 @@ export default function ChatBot({ onBack }: ChatBotProps) {
         // Charger l'historique complet du ticket
         const ticket = data.ticket;
         const loadedMessages: Message[] = ticket.messages.map((msg: any) => ({
-          id: msg.id,
+          id: msg.message_id || msg.id,
           text: msg.content,
-          isUser: msg.role === 'user',
+          isUser: msg.type === 'client' || msg.role === 'user',
           timestamp: new Date(msg.timestamp),
           isAnalyzing: false
         }));
-        // Remplacer les messages de bienvenue par l'historique réel
         if (loadedMessages.length > 0) {
           setMessages(loadedMessages);
+          setShowQuickButtons(false);
+        }
+        // Mettre à jour le statut du ticket
+        if (ticket.status) {
+          setTicketStatus(ticket.status === 'fermé' ? 'fermé' : 'en cours');
         }
       } else if (data.type === 'status_updated') {
-        // Gérer les mises à jour de statut
         console.log('Statut mis à jour:', data.status);
         setTicketStatus(data.status);
         if (data.status === 'fermé') {
@@ -180,7 +187,7 @@ export default function ChatBot({ onBack }: ChatBotProps) {
 
       if (!ticketId) {
         // Créer un nouveau ticket avec le premier message
-        response = await fetch(`${API_BASE_URL}/public/tickets`, {
+        response = await fetch(`${API_BASE_URL}/public/tickets/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -193,7 +200,10 @@ export default function ChatBot({ onBack }: ChatBotProps) {
         }
 
         const ticketData = await response.json();
-        setTicketId(ticketData.ticket_id);
+        const newTicketId = ticketData.ticket_id;
+        setTicketId(newTicketId);
+        // Sauvegarder dans localStorage pour persistance
+        localStorage.setItem('freeda_ticket_id', newTicketId);
 
         // Ne pas mettre à jour manuellement, le WebSocket le fera
         // Supprimer le placeholder
@@ -279,6 +289,8 @@ export default function ChatBot({ onBack }: ChatBotProps) {
       setTicketStatus('fermé');
       setShowCloseDialog(false);
       addMessage('Ce ticket a été fermé. Merci d\'avoir contacté le support Free.', false);
+      // Supprimer le ticketId du localStorage
+      localStorage.removeItem('freeda_ticket_id');
     } catch (error) {
       console.error('Erreur lors de la fermeture du ticket:', error);
       alert('Impossible de fermer le ticket. Veuillez réessayer.');
@@ -423,7 +435,6 @@ export default function ChatBot({ onBack }: ChatBotProps) {
             <X className="w-5 h-5" />
           </Button>
         )}
-        {!ticketId || ticketStatus === 'fermé' ? <div className="w-10" /> : null}
       </div>
 
       {/* Messages */}

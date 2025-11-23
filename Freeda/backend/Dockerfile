@@ -29,7 +29,7 @@ FROM python:3.11-slim
 # Variables d'environnement
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH=/root/.local/bin:$PATH
+    PATH=/home/freeda/.local/bin:$PATH
 
 # Créer un utilisateur non-root pour la sécurité
 RUN useradd -m -u 1000 freeda && \
@@ -53,7 +53,7 @@ USER freeda
 EXPOSE 8000
 
 # Health check pour AWS ECS/ELB
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"
 
 # Commande de démarrage

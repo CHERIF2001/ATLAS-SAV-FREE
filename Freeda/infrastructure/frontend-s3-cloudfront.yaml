@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Freeda Frontend - S3 + CloudFront + Route53'
+Description: 'Freeda Frontend - S3 + CloudFront + Reverse Proxy to ALB'
 
 Parameters:
   Environment:
@@ -18,6 +18,11 @@ Parameters:
     Default: ''
     Description: 'Optional: ACM Certificate ARN for HTTPS (must be in us-east-1)'
 
+  BackendALBDNS:
+    Type: String
+    Default: 'freeda-alb-production-151117787.eu-west-3.elb.amazonaws.com'
+    Description: 'DNS name of the Backend ALB'
+
 Conditions:
   HasDomain: !Not [!Equals [!Ref DomainName, '']]
   HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
@@ -30,7 +35,7 @@ Resources:
       BucketName: !Sub 'freeda-frontend-${Environment}-${AWS::AccountId}'
       WebsiteConfiguration:
         IndexDocument: index.html
-        ErrorDocument: index.html  # Pour SPA routing
+        ErrorDocument: index.html
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -48,8 +53,6 @@ Resources:
           Value: !Ref Environment
         - Key: Application
           Value: Freeda
-        - Key: Component
-          Value: Frontend
 
   # Bucket Policy pour CloudFront
   FrontendBucketPolicy:
@@ -88,15 +91,13 @@ Resources:
         DefaultRootObject: index.html
         HttpVersion: http2and3
         IPV6Enabled: true
-        PriceClass: PriceClass_100  # USA, Canada, Europe
+        PriceClass: PriceClass_100
         
-        # Aliases (custom domain)
         Aliases: !If
           - HasDomain
           - [!Ref DomainName]
           - !Ref AWS::NoValue
         
-        # SSL Certificate
         ViewerCertificate: !If
           - HasCertificate
           - AcmCertificateArn: !Ref CertificateArn
@@ -104,28 +105,89 @@ Resources:
             MinimumProtocolVersion: TLSv1.2_2021
           - CloudFrontDefaultCertificate: true
         
-        # Origins
         Origins:
+          # Origine S3 (Frontend)
           - Id: S3Origin
             DomainName: !GetAtt FrontendBucket.RegionalDomainName
             OriginAccessControlId: !Ref CloudFrontOAC
             S3OriginConfig: {}
+          
+          # Origine ALB (Backend) - Reverse Proxy
+          - Id: ALBOrigin
+            DomainName: !Ref BackendALBDNS
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: http-only  # CloudFront parle en HTTP à l'ALB
+              OriginSSLProtocols: [TLSv1.2]
         
-        # Cache Behaviors
+        # Cache Behaviors (Routes API)
+        CacheBehaviors:
+          # Route pour l'API publique
+          - PathPattern: /public/*
+            TargetOriginId: ALBOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+            CachedMethods: [GET, HEAD, OPTIONS]
+            Compress: true
+            ForwardedValues:
+              QueryString: true
+              Headers: ['*']
+              Cookies:
+                Forward: all
+            DefaultTTL: 0
+            MinTTL: 0
+            MaxTTL: 0
+          
+          # Route pour la documentation API
+          - PathPattern: /docs
+            TargetOriginId: ALBOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            ForwardedValues:
+              QueryString: true
+              Cookies: { Forward: all }
+          - PathPattern: /openapi.json
+            TargetOriginId: ALBOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            ForwardedValues:
+              QueryString: true
+              Cookies: { Forward: all }
+          - PathPattern: /redoc
+            TargetOriginId: ALBOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            ForwardedValues:
+              QueryString: true
+              Cookies: { Forward: all }
+          
+          # Route pour les WebSockets
+          - PathPattern: /ws/*
+            TargetOriginId: ALBOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+            CachedMethods: [GET, HEAD, OPTIONS]
+            Compress: false  # Pas de compression pour les WebSockets
+            ForwardedValues:
+              QueryString: true
+              Headers: ['*']  # Important pour les headers Upgrade et Connection
+              Cookies:
+                Forward: all
+            DefaultTTL: 0
+            MinTTL: 0
+            MaxTTL: 0
+
+        # Default Behavior (Frontend S3)
         DefaultCacheBehavior:
           TargetOriginId: S3Origin
           ViewerProtocolPolicy: redirect-to-https
           AllowedMethods: [GET, HEAD, OPTIONS]
           CachedMethods: [GET, HEAD, OPTIONS]
           Compress: true
-          
-          # Cache Policy
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
-          
-          # Response Headers Policy (Security Headers)
           ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
         
-        # Custom Error Responses (pour SPA routing)
         CustomErrorResponses:
           - ErrorCode: 403
             ResponseCode: 200
@@ -136,7 +198,6 @@ Resources:
             ResponsePagePath: /index.html
             ErrorCachingMinTTL: 300
         
-        # Logging
         Logging:
           Bucket: !GetAtt LogsBucket.DomainName
           Prefix: cloudfront/
@@ -155,32 +216,27 @@ Resources:
       ResponseHeadersPolicyConfig:
         Name: !Sub 'freeda-security-headers-${Environment}'
         Comment: Security headers for Freeda frontend
-        
         SecurityHeadersConfig:
           StrictTransportSecurity:
             AccessControlMaxAgeSec: 31536000
             IncludeSubdomains: true
             Preload: true
             Override: true
-          
           ContentTypeOptions:
             Override: true
-          
           FrameOptions:
             FrameOption: DENY
             Override: true
-          
           XSSProtection:
             ModeBlock: true
             Protection: true
             Override: true
-          
           ReferrerPolicy:
             ReferrerPolicy: strict-origin-when-cross-origin
             Override: true
-          
           ContentSecurityPolicy:
-            ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.amazonaws.com"
+            # Autorise 'self' pour connect-src car l'API est maintenant sur le même domaine
+            ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.amazonaws.com wss://*.cloudfront.net;"
             Override: true
 
   # Logs Bucket
@@ -188,61 +244,56 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub 'freeda-logs-${Environment}-${AWS::AccountId}'
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
       LifecycleConfiguration:
         Rules:
           - Id: DeleteOldLogs
             Status: Enabled
             ExpirationInDays: 90
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
+        BlockPublicAcls: false
         BlockPublicPolicy: true
-        IgnorePublicAcls: true
+        IgnorePublicAcls: false
         RestrictPublicBuckets: true
       Tags:
         - Key: Environment
           Value: !Ref Environment
-
-  # CloudWatch Alarm - CloudFront Errors
-  CloudFrontErrorAlarm:
-    Type: AWS::CloudWatch::Alarm
+  
+  LogsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
     Properties:
-      AlarmName: !Sub 'freeda-frontend-${Environment}-errors'
-      AlarmDescription: Alert when CloudFront error rate is high
-      MetricName: 5xxErrorRate
-      Namespace: AWS/CloudFront
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 2
-      Threshold: 5
-      ComparisonOperator: GreaterThanThreshold
-      Dimensions:
-        - Name: DistributionId
-          Value: !Ref CloudFrontDistribution
+      Bucket: !Ref LogsBucket
+      PolicyDocument:
+        Statement:
+          - Sid: AWSCloudFrontLogsWrite
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub '${LogsBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}'
+          - Sid: AWSCloudFrontLogsAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action:
+              - s3:GetBucketAcl
+              - s3:PutBucketAcl
+            Resource: !GetAtt LogsBucket.Arn
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}'
 
 Outputs:
   BucketName:
-    Description: S3 Bucket name for frontend
     Value: !Ref FrontendBucket
-    Export:
-      Name: !Sub '${AWS::StackName}-BucketName'
-  
   CloudFrontDomain:
-    Description: CloudFront distribution domain
     Value: !GetAtt CloudFrontDistribution.DomainName
-    Export:
-      Name: !Sub '${AWS::StackName}-CloudFrontDomain'
-  
   CloudFrontDistributionId:
-    Description: CloudFront distribution ID
     Value: !Ref CloudFrontDistribution
-    Export:
-      Name: !Sub '${AWS::StackName}-DistributionId'
-  
   WebsiteURL:
-    Description: Website URL
-    Value: !If
-      - HasDomain
-      - !Sub 'https://${DomainName}'
-      - !Sub 'https://${CloudFrontDistribution.DomainName}'
-    Export:
-      Name: !Sub '${AWS::StackName}-WebsiteURL'
+    Value: !Sub 'https://${CloudFrontDistribution.DomainName}'

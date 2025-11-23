@@ -16,6 +16,7 @@ passlib[bcrypt]==1.7.4
 boto3==1.35.0
 
 # RAG dependencies
+numpy<2.0
 chromadb==0.4.22
 beautifulsoup4==4.12.3
 

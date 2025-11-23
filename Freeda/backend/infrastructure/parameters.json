@@ -1,30 +1,30 @@
 [
-  {
-    "ParameterKey": "Environment",
-    "ParameterValue": "production"
-  },
-  {
-    "ParameterKey": "ContainerImage",
-    "ParameterValue": "717153733153.dkr.ecr.eu-west-3.amazonaws.com/freeda-backend:latest"
-  },
-  {
-    "ParameterKey": "DynamoDBTableName",
-    "ParameterValue": "freeda-tickets-production"
-  },
-  {
-    "ParameterKey": "VpcId",
-    "ParameterValue": "vpc-035a8d707a1391974"
-  },
-  {
-    "ParameterKey": "SubnetIds",
-    "ParameterValue": "subnet-06e0372a95e3f0d16,subnet-09fea57f70e2d02e0"
-  },
-  {
-    "ParameterKey": "MistralApiKey",
-    "ParameterValue": "x5anX6aWIDqCnykNhb8yGYbh5je04Ud4"
-  },
-  {
-    "ParameterKey": "JwtSecretKey",
-    "ParameterValue": "Wuve6EGwJjQx4I8kLcZ5bTXln9ArD2tSfmYgFh3qRNCodOs7UP0payH1ziMKBV"
-  }
+    {
+        "ParameterKey":  "Environment",
+        "ParameterValue":  "production"
+    },
+    {
+        "ParameterKey":  "ContainerImage",
+        "ParameterValue":  "717153733153.dkr.ecr.eu-west-3.amazonaws.com/freeda-backend:latest"
+    },
+    {
+        "ParameterKey":  "DynamoDBTableName",
+        "ParameterValue":  "freeda-tickets-production"
+    },
+    {
+        "ParameterKey":  "VpcId",
+        "ParameterValue":  "vpc-035a8d707a1391974"
+    },
+    {
+        "ParameterKey":  "SubnetIds",
+        "ParameterValue":  "subnet-06e0372a95e3f0d16,subnet-09fea57f70e2d02e0"
+    },
+    {
+        "ParameterKey":  "MistralApiKey",
+        "ParameterValue":  "x5anX6aWIDqCnykNhb8yGYbh5je04Ud4"
+    },
+    {
+        "ParameterKey":  "JwtSecretKey",
+        "ParameterValue":  "Wuve6EGwJjQx4I8kLcZ5bTXln9ArD2tSfmYgFh3qRNCodOs7UP0payH1ziMKBV"
+    }
 ]

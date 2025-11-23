@@ -32,6 +32,11 @@ Parameters:
     Type: String
     Description: Docker image URI (e.g., 123456789.dkr.ecr.eu-west-1.amazonaws.com/freeda:latest)
 
+  JwtSecretKey:
+    Type: String
+    NoEcho: true
+    Description: Secret key for JWT tokens
+
 Resources:
   # ==========================================
   # ECS Cluster
@@ -111,6 +116,9 @@ Resources:
                   - dynamodb:DeleteItem
                   - dynamodb:Query
                   - dynamodb:Scan
+                  - dynamodb:DescribeTable
+                  - dynamodb:BatchGetItem
+                  - dynamodb:BatchWriteItem
                 Resource:
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}/index/*'
@@ -236,7 +244,7 @@ Resources:
             - Name: ENABLE_AUTO_ANALYTICS
               Value: 'true'
             - Name: ENABLE_RAG
-              Value: 'true'
+              Value: 'false'
             - Name: MISTRAL_MODEL
               Value: mistral-medium
             - Name: ALLOWED_ORIGINS
@@ -257,7 +265,7 @@ Resources:
             Interval: 30
             Timeout: 5
             Retries: 3
-            StartPeriod: 60
+            StartPeriod: 180
 
   # ==========================================
   # ECS Service
@@ -282,7 +290,7 @@ Resources:
         - ContainerName: freeda-backend
           ContainerPort: 8000
           TargetGroupArn: !Ref TargetGroup
-      HealthCheckGracePeriodSeconds: 60
+      HealthCheckGracePeriodSeconds: 180
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 100
