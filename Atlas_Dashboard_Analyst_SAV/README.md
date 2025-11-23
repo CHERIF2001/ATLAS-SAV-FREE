@@ -2,7 +2,7 @@
 
 Dashboard professionnel d'analyse de tweets clients avec enrichissement LLM et visualisations avancées.
 
-## 🚀 Fonctionnalités
+##  Fonctionnalités
 
 ### Pipeline de traitement
 - ✅ Nettoyage complet des tweets (RT, doublons, URLs, mentions, emojis)
@@ -19,7 +19,7 @@ Dashboard professionnel d'analyse de tweets clients avec enrichissement LLM et v
 - 🎯 **Analyse par motif**: Matrices croisées, volumes, urgence et churn par thème
 - 📋 **Liste des tweets**: Tableau interactif avec filtres avancés et badges colorés
 
-## 📁 Structure du projet
+##  Structure du projet
 
 ```
 ATLAS-analytics/
@@ -152,7 +152,7 @@ Modifiez `src/config.py` pour ajuster :
 - Les réponses LLM brutes sont conservées pour debug
 - Les colonnes enrichies: `motif`, `sentiment`, `urgence`, `risque_churn`, `is_churn_risk`
 
-## 🐛 Dépannage
+##  Dépannage
 
 ### Erreur "MISTRAL_API_KEY non définie"
 - Vérifiez que le fichier `.env` existe et contient la clé
