@@ -9,7 +9,7 @@ from typing import Optional
 from tqdm import tqdm
 
 from src.config import PROCESSED_DIR, LLM_BATCH_SIZE
-from src.llm_classification import initialize_mistral_client, classify_dataframe_batch
+from src.llm_classification import initialize_mistral_client, classify_batch
 from src.parse_llm_outputs import parse_batch_responses
 from src.utils import save_dataframe, load_dataframe
 
@@ -68,7 +68,7 @@ def enrich_with_llm(
     
     # Classification par batches
     logger.info(f"Début classification LLM pour {len(texts)} tweets...")
-    batch_results = classify_dataframe_batch(client, texts, batch_size=LLM_BATCH_SIZE)
+    batch_results = classify_batch(client, texts, batch_size=LLM_BATCH_SIZE)
     
     # Parser les réponses
     logger.info("Parsing des réponses LLM...")
