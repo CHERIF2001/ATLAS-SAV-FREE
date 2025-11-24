@@ -36,27 +36,20 @@ export default function ChatBot({ onBack }: ChatBotProps) {
       timestamp: new Date()
     }
   ]);
-  const [ticketId, setTicketId] = useState<string | null>(() => {
-    // Restaurer le ticketId depuis localStorage au chargement
-    return localStorage.getItem('freeda_ticket_id');
-  });
+  const [ticketId, setTicketId] = useState<string | null>(() => localStorage.getItem('freeda_ticket_id'));
   const [ticketStatus, setTicketStatus] = useState<'en cours' | 'fermé'>('en cours');
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showQuickButtons, setShowQuickButtons] = useState(true);
+  const [showQuick, setShowQuick] = useState(true);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const msgEnd = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const scrollToBottom = () => msgEnd.current?.scrollIntoView({ behavior: 'smooth' });
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  useEffect(() => scrollToBottom(), [messages]);
 
   const generateId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -85,7 +78,6 @@ export default function ChatBot({ onBack }: ChatBotProps) {
     );
   };
 
-  // Connexion WebSocket pour recevoir les mises à jour temps réel
   useEffect(() => {
     if (!ticketId) return;
 
@@ -93,8 +85,7 @@ export default function ChatBot({ onBack }: ChatBotProps) {
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log('WebSocket connecté, demande du snapshot...');
-      // Demander l'historique complet dès la connexion
+      console.log('WS connected');
       ws.send(JSON.stringify({ type: 'request_snapshot' }));
     };
 
@@ -112,10 +103,8 @@ export default function ChatBot({ onBack }: ChatBotProps) {
           isAnalyzing: false
         };
         setMessages(prev => {
-          // Si le message existe déjà par ID, on ne fait rien
           if (prev.some(m => m.id === msg.id)) return prev;
 
-          // Si c'est un message utilisateur, chercher un doublon optimiste
           if (newMsg.isUser) {
             const now = new Date();
             for (let i = prev.length - 1; i >= 0; i--) {
@@ -131,7 +120,6 @@ export default function ChatBot({ onBack }: ChatBotProps) {
           return [...prev, newMsg];
         });
       } else if (data.type === 'ticket_snapshot') {
-        // Charger l'historique complet du ticket
         const ticket = data.ticket;
         const loadedMessages: Message[] = ticket.messages.map((msg: any) => ({
           id: msg.message_id || msg.id,
@@ -142,9 +130,8 @@ export default function ChatBot({ onBack }: ChatBotProps) {
         }));
         if (loadedMessages.length > 0) {
           setMessages(loadedMessages);
-          setShowQuickButtons(false);
+          setShowQuick(false);
         }
-        // Mettre à jour le statut du ticket
         if (ticket.status) {
           setTicketStatus(ticket.status === 'fermé' ? 'fermé' : 'en cours');
         }
@@ -170,14 +157,13 @@ export default function ChatBot({ onBack }: ChatBotProps) {
     };
   }, [ticketId]);
 
-  const sendMessageToBackend = async (message: string) => {
+  const sendMsg = async (message: string) => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage) return;
 
-    // Ajouter le message localement immédiatement (Optimistic UI)
     addMessage(trimmedMessage, true);
     setInputText('');
-    setShowQuickButtons(false);
+    setShowQuick(false);
 
     const placeholderId = addMessage('Analyse en cours...', false, true);
     setIsAnalyzing(true);
@@ -186,12 +172,9 @@ export default function ChatBot({ onBack }: ChatBotProps) {
       let response;
 
       if (!ticketId) {
-        // Créer un nouveau ticket avec le premier message
         response = await fetch(`${API_BASE_URL}/public/tickets/`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ initial_message: trimmedMessage })
         });
 
@@ -202,19 +185,13 @@ export default function ChatBot({ onBack }: ChatBotProps) {
         const ticketData = await response.json();
         const newTicketId = ticketData.ticket_id;
         setTicketId(newTicketId);
-        // Sauvegarder dans localStorage pour persistance
         localStorage.setItem('freeda_ticket_id', newTicketId);
 
-        // Ne pas mettre à jour manuellement, le WebSocket le fera
-        // Supprimer le placeholder
         setMessages(prev => prev.filter(m => m.id !== placeholderId));
       } else {
-        // Envoyer un message sur un ticket existant
         response = await fetch(`${API_BASE_URL}/public/tickets/${ticketId}/messages`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: trimmedMessage })
         });
 
@@ -223,8 +200,6 @@ export default function ChatBot({ onBack }: ChatBotProps) {
           throw new Error(errorData.detail || 'Erreur serveur');
         }
 
-        // Ne pas mettre à jour manuellement, le WebSocket le fera
-        // Supprimer le placeholder
         setMessages(prev => prev.filter(m => m.id !== placeholderId));
       }
 
@@ -241,24 +216,19 @@ export default function ChatBot({ onBack }: ChatBotProps) {
     }
   };
 
-  const handleSendMessage = () => {
-    sendMessageToBackend(inputText);
-  };
+  const handleSendMessage = () => sendMsg(inputText);
 
   const handleQuickButton = (buttonId: string) => {
     const button = quickButtons.find(b => b.id === buttonId);
     if (!button) return;
-
-    sendMessageToBackend(button.label);
+    sendMsg(button.label);
   };
 
   const handleVoiceRecord = () => {
     if (isRecording) {
-      // Arrêter l'enregistrement
       setIsRecording(false);
-      sendMessageToBackend('Message vocal enregistré');
+      sendMsg('Message vocal enregistré');
     } else {
-      // Commencer l'enregistrement
       setIsRecording(true);
     }
   };
@@ -289,7 +259,6 @@ export default function ChatBot({ onBack }: ChatBotProps) {
       setTicketStatus('fermé');
       setShowCloseDialog(false);
       addMessage('Ce ticket a été fermé. Merci d\'avoir contacté le support Free.', false);
-      // Supprimer le ticketId du localStorage
       localStorage.removeItem('freeda_ticket_id');
     } catch (error) {
       console.error('Erreur lors de la fermeture du ticket:', error);
@@ -464,11 +433,11 @@ export default function ChatBot({ onBack }: ChatBotProps) {
           </div>
         ))}
 
-        <div ref={messagesEndRef} />
+        <div ref={msgEnd} />
       </div>
 
       {/* Boutons rapides */}
-      {showQuickButtons && (
+      {showQuick && (
         <div className="p-4 border-t bg-gray-50">
           <p className="text-sm text-gray-600 mb-3">Ou choisissez rapidement :</p>
           <div className="grid grid-cols-2 gap-2">

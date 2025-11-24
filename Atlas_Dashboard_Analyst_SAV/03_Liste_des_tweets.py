@@ -1,6 +1,3 @@
-"""
-Page 3: Liste des tweets avec filtres avancés
-"""
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -10,280 +7,181 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT_DIR))
 
-from src.config import COLORS
+from src.config import COLORS, PROCESSED_DIR
 from src.utils import load_dataframe
-from src.config import PROCESSED_DIR
-
 
 def load_data():
-    """Charge les données depuis la session ou le fichier"""
     if "df_filtered" in st.session_state:
         return st.session_state["df_filtered"]
     
     data_file = PROCESSED_DIR / "tweets_enriched.parquet"
     if not data_file.exists():
-        alt_files = [
-            PROCESSED_DIR / "free_tweets_enriched_parsed.parquet",
-            PROCESSED_DIR / "free_tweets_enriched.parquet"
-        ]
-        for alt_file in alt_files:
-            if alt_file.exists():
-                data_file = alt_file
+        # Fallback files
+        for f in [PROCESSED_DIR / "free_tweets_enriched_parsed.parquet", PROCESSED_DIR / "free_tweets_enriched.parquet"]:
+            if f.exists():
+                data_file = f
                 break
     
     if data_file.exists():
         return load_dataframe(data_file)
     return None
 
-
 def get_badge_html(value, badge_type="sentiment"):
-    """Génère le HTML pour un badge coloré"""
-    value_lower = str(value).lower()
+    v = str(value).lower()
     
-    if badge_type == "sentiment":
-        if value_lower == "positif":
-            return '<span class="badge-positif">Positif</span>'
-        elif value_lower == "neutre":
-            return '<span class="badge-neutre">Neutre</span>'
-        elif value_lower == "négatif":
-            return '<span class="badge-negatif">Négatif</span>'
+    badges = {
+        "sentiment": {
+            "positif": '<span class="badge-positif">Positif</span>',
+            "neutre": '<span class="badge-neutre">Neutre</span>',
+            "négatif": '<span class="badge-negatif">Négatif</span>'
+        },
+        "urgence": {
+            "faible": '<span class="badge-faible">Faible</span>',
+            "moyenne": '<span class="badge-moyenne">Moyenne</span>',
+            "élevée": '<span class="badge-elevee">Élevée</span>'
+        },
+        "churn": {
+            "modéré": '<span class="badge-elevee">Risque</span>',
+            "élevé": '<span class="badge-elevee">Risque</span>'
+        }
+    }
     
-    elif badge_type == "urgence":
-        if value_lower == "faible":
-            return '<span class="badge-faible">Faible</span>'
-        elif value_lower == "moyenne":
-            return '<span class="badge-moyenne">Moyenne</span>'
-        elif value_lower == "élevée":
-            return '<span class="badge-elevee">Élevée</span>'
-    
-    elif badge_type == "churn":
-        if value_lower in ["modéré", "élevé"]:
-            return '<span class="badge-elevee">Risque</span>'
-        else:
-            return '<span class="badge-faible">Faible</span>'
-    
-    return str(value)
-
+    if badge_type == "churn":
+        return badges["churn"].get(v, '<span class="badge-faible">Faible</span>')
+        
+    return badges.get(badge_type, {}).get(v, str(value))
 
 def render_tweet_table(df):
-    """Affiche le tableau HTML custom des tweets"""
     if len(df) == 0:
         st.info("Aucun tweet ne correspond aux filtres")
         return
     
-    # Colonnes à afficher
-    display_cols = []
-    if "created_at" in df.columns:
-        display_cols.append("created_at")
-    if "screen_name" in df.columns:
-        display_cols.append("screen_name")
-    if "text_translated_fr" in df.columns:
-        display_cols.append("text_translated_fr")
-    elif "text_clean" in df.columns:
-        display_cols.append("text_clean")
-    if "motif" in df.columns:
-        display_cols.append("motif")
-    if "sentiment" in df.columns:
-        display_cols.append("sentiment")
-    if "urgence" in df.columns:
-        display_cols.append("urgence")
-    if "is_churn_risk" in df.columns:
-        display_cols.append("is_churn_risk")
+    cols = ["created_at", "screen_name", "text_translated_fr", "text_clean", "motif", "sentiment", "urgence", "is_churn_risk"]
+    display_cols = [c for c in cols if c in df.columns]
+    
+    # Prefer translated text if available
+    if "text_translated_fr" in display_cols and "text_clean" in display_cols:
+        display_cols.remove("text_clean")
     
     df_display = df[display_cols].copy()
     
-    # Limiter à 1000 lignes pour les performances
-    max_rows = 1000
-    if len(df_display) > max_rows:
-        st.warning(f"Affichage des {max_rows} premiers résultats sur {len(df_display)}")
-        df_display = df_display.head(max_rows)
+    if len(df_display) > 1000:
+        st.warning(f"Affichage des 1000 premiers résultats sur {len(df_display)}")
+        df_display = df_display.head(1000)
     
-    # Générer le HTML
-    html = """
+    # CSS
+    st.markdown("""
     <style>
-        .tweet-table {
-            width: 100%;
-            border-collapse: collapse;
-            background-color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        .tweet-table th {
-            background-color: #f3f4f6;
-            padding: 1rem;
-            text-align: left;
-            font-weight: 600;
-            border-bottom: 2px solid #e5e7eb;
-            font-size: 0.875rem;
-        }
-        .tweet-table td {
-            padding: 1rem;
-            border-bottom: 1px solid #e5e7eb;
-            font-size: 0.875rem;
-        }
-        .tweet-table tr:hover {
-            background-color: #f9fafb;
-        }
-        .tweet-table tr:last-child td {
-            border-bottom: none;
-        }
-        .tweet-text {
-            max-width: 400px;
-            word-wrap: break-word;
-        }
+        .tweet-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+        .tweet-table th { background: #f3f4f6; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #e5e7eb; }
+        .tweet-table td { padding: 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+        .tweet-table tr:hover { background: #f9fafb; }
+        .tweet-text { max-width: 400px; word-wrap: break-word; }
     </style>
-    <table class="tweet-table">
-        <thead>
-            <tr>
-    """
+    """, unsafe_allow_html=True)
     
-    # En-têtes
+    html = '<table class="tweet-table"><thead><tr>'
+    
     headers = {
-        "created_at": "Date",
-        "screen_name": "Client",
-        "text_translated_fr": "Tweet",
-        "text_clean": "Tweet",
-        "motif": "Motif",
-        "sentiment": "Sentiment",
-        "urgence": "Urgence",
-        "is_churn_risk": "Churn"
+        "created_at": "Date", "screen_name": "Client", "text_translated_fr": "Tweet",
+        "text_clean": "Tweet", "motif": "Motif", "sentiment": "Sentiment",
+        "urgence": "Urgence", "is_churn_risk": "Churn"
     }
     
     for col in display_cols:
         html += f'<th>{headers.get(col, col)}</th>'
+    html += '</tr></thead><tbody>'
     
-    html += """
-            </tr>
-        </thead>
-        <tbody>
-    """
-    
-    # Lignes de données
-    for idx, row in df_display.iterrows():
+    for _, row in df_display.iterrows():
         html += "<tr>"
-        
         for col in display_cols:
-            value = row[col]
-            
-            if pd.isna(value):
+            val = row[col]
+            if pd.isna(val):
                 html += "<td>-</td>"
-            elif col == "created_at":
+                continue
+                
+            if col == "created_at":
                 try:
-                    date_val = pd.to_datetime(value)
-                    html += f'<td>{date_val.strftime("%Y-%m-%d %H:%M")}</td>'
+                    html += f'<td>{pd.to_datetime(val).strftime("%Y-%m-%d %H:%M")}</td>'
                 except:
-                    html += f'<td>{str(value)}</td>'
+                    html += f'<td>{val}</td>'
             elif col == "sentiment":
-                html += f'<td>{get_badge_html(value, "sentiment")}</td>'
+                html += f'<td>{get_badge_html(val, "sentiment")}</td>'
             elif col == "urgence":
-                html += f'<td>{get_badge_html(value, "urgence")}</td>'
+                html += f'<td>{get_badge_html(val, "urgence")}</td>'
             elif col == "is_churn_risk":
-                html += f'<td>{get_badge_html("élevé" if value else "faible", "churn")}</td>'
-            elif col in ["text_translated_fr", "text_clean"]:
-                text = str(value)[:200] + ("..." if len(str(value)) > 200 else "")
+                html += f'<td>{get_badge_html("élevé" if val else "faible", "churn")}</td>'
+            elif "text" in col:
+                text = str(val)[:200] + ("..." if len(str(val)) > 200 else "")
                 html += f'<td class="tweet-text">{text}</td>'
             else:
-                html += f'<td>{str(value)}</td>'
-        
+                html += f'<td>{val}</td>'
         html += "</tr>"
-    
-    html += """
-        </tbody>
-    </table>
-    """
-    
+        
+    html += "</tbody></table>"
     st.markdown(html, unsafe_allow_html=True)
 
-
 def main():
-    """Page de liste des tweets"""
     st.title("📋 Liste des Tweets")
     
     df = load_data()
-    
     if df is None or len(df) == 0:
-        st.error("❌ Aucune donnée disponible")
+        st.error("❌ Aucune donnée")
         return
     
-    # Filtres avancés dans la sidebar
     with st.sidebar:
-        st.header("🔍 Filtres Avancés")
+        st.header("🔍 Filtres")
         
-        # Filtre par client
-        if "screen_name" in df.columns:
-            clients = ["Tous"] + sorted(df["screen_name"].dropna().unique().tolist())
-            selected_client = st.selectbox("Client", clients)
-            if selected_client != "Tous":
-                df = df[df["screen_name"] == selected_client]
-        
-        # Filtre par motif
-        if "motif" in df.columns:
-            motifs = ["Tous"] + sorted(df["motif"].dropna().unique().tolist())
-            selected_motif = st.selectbox("Motif", motifs)
-            if selected_motif != "Tous":
-                df = df[df["motif"] == selected_motif]
-        
-        # Filtre par sentiment
-        if "sentiment" in df.columns:
-            sentiments = ["Tous"] + sorted(df["sentiment"].dropna().unique().tolist())
-            selected_sentiment = st.selectbox("Sentiment", sentiments)
-            if selected_sentiment != "Tous":
-                df = df[df["sentiment"] == selected_sentiment]
-        
-        # Filtre par urgence
-        if "urgence" in df.columns:
-            urgences = ["Tous"] + sorted(df["urgence"].dropna().unique().tolist())
-            selected_urgence = st.selectbox("Urgence", urgences)
-            if selected_urgence != "Tous":
-                df = df[df["urgence"] == selected_urgence]
-        
-        # Filtre churn
+        # Helper to add filter
+        def add_filter(label, col):
+            if col in df.columns:
+                opts = ["Tous"] + sorted(df[col].dropna().unique().tolist())
+                sel = st.selectbox(label, opts)
+                return sel if sel != "Tous" else None
+            return None
+
+        if f_client := add_filter("Client", "screen_name"):
+            df = df[df["screen_name"] == f_client]
+            
+        if f_motif := add_filter("Motif", "motif"):
+            df = df[df["motif"] == f_motif]
+            
+        if f_sent := add_filter("Sentiment", "sentiment"):
+            df = df[df["sentiment"] == f_sent]
+            
+        if f_urg := add_filter("Urgence", "urgence"):
+            df = df[df["urgence"] == f_urg]
+            
         if "is_churn_risk" in df.columns:
-            churn_options = ["Tous", "Risque churn", "Pas de risque"]
-            selected_churn = st.selectbox("Risque churn", churn_options)
-            if selected_churn == "Risque churn":
+            churn_sel = st.selectbox("Risque churn", ["Tous", "Risque churn", "Pas de risque"])
+            if churn_sel == "Risque churn":
                 df = df[df["is_churn_risk"] == True]
-            elif selected_churn == "Pas de risque":
+            elif churn_sel == "Pas de risque":
                 df = df[df["is_churn_risk"] == False]
         
-        # Filtre par date
-        if "created_at" in df.columns and not df["created_at"].isna().all():
-            date_min = pd.to_datetime(df["created_at"]).min().date()
-            date_max = pd.to_datetime(df["created_at"]).max().date()
+        if "created_at" in df.columns:
+            d_min = pd.to_datetime(df["created_at"]).min().date()
+            d_max = pd.to_datetime(df["created_at"]).max().date()
+            rng = st.date_input("Période", (d_min, d_max), min_value=d_min, max_value=d_max)
             
-            date_range = st.date_input(
-                "Période",
-                value=(date_min, date_max),
-                min_value=date_min,
-                max_value=date_max
-            )
-            
-            if len(date_range) == 2:
-                df = df[
-                    (pd.to_datetime(df["created_at"]).dt.date >= date_range[0]) &
-                    (pd.to_datetime(df["created_at"]).dt.date <= date_range[1])
-                ]
+            if len(rng) == 2:
+                mask = (pd.to_datetime(df["created_at"]).dt.date >= rng[0]) & (pd.to_datetime(df["created_at"]).dt.date <= rng[1])
+                df = df[mask]
     
-    # Statistiques
     st.metric("Nombre de tweets", len(df))
-    
     st.markdown("---")
     
-    # Tableau
     render_tweet_table(df)
     
-    # Bouton d'export
     if len(df) > 0:
         st.markdown("---")
         csv = df.to_csv(index=False, encoding="utf-8-sig")
         st.download_button(
-            label="📥 Télécharger les résultats (CSV)",
-            data=csv,
-            file_name=f"tweets_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv"
+            "📥 Télécharger (CSV)",
+            csv,
+            f"export_{datetime.now().strftime('%Y%m%d')}.csv",
+            "text/csv"
         )
-
 
 if __name__ == "__main__":
     main()

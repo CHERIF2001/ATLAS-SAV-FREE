@@ -1,7 +1,3 @@
-"""
-Service d'analyse automatique des tickets avec Mistral AI.
-Optimisé pour le coût et la pertinence.
-"""
 import json
 import logging
 from datetime import datetime
@@ -37,55 +33,33 @@ CRITERES STRICTS :
 
 REPONDS UNIQUEMENT AVEC LE JSON."""
 
-
 class AnalyticsService:
-    """Service d'analyse automatique des tickets."""
-
     def __init__(self, mistral_client):
         self.mistral_client = mistral_client
         logger.info("AnalyticsService initialized")
 
     async def analyze_ticket(self, messages: List[Dict[str, Any]]) -> dict:
-        """
-        Analyser une conversation complète.
-        
-        Args:
-            messages: Liste des messages du ticket [{"role": "user", "content": "..."}, ...]
-            
-        Returns:
-            dict: Analytics complets
-        """
         if not self.mistral_client:
             return self._get_default_analytics()
 
-        # 1. Optimisation Coût : Ne pas analyser si le dernier message est trivial
         last_msg = messages[-1]["content"] if messages else ""
         if len(last_msg) < 5 or last_msg.lower() in ["ok", "merci", "d'accord", "non", "oui"]:
             logger.info("Skipping analytics for trivial message")
             return self._get_default_analytics()
 
         try:
-            # 2. Préparer le contexte (Derniers 5 messages pour garder le contexte sans exploser les tokens)
             recent_messages = messages[-5:]
             conversation_text = "\n".join([f"{m.get('role', 'user').upper()}: {m.get('content', '')}" for m in recent_messages])
             
             prompt = ANALYTICS_PROMPT.format(conversation=conversation_text)
             
-            # 3. Appel Mistral (Mode JSON si possible, sinon prompt strict)
-            response = await self.mistral_client.chat(
-                [{"role": "user", "content": prompt}],
-                temperature=0.1,
-                max_tokens=300
-            )
+            response = await self.mistral_client.chat([{"role": "user", "content": prompt}], temperature=0.1, max_tokens=300)
             
-            # 4. Parsing robuste
             analytics = self._parse_analytics_response(response)
             analytics["analyzed_at"] = self._now_iso()
             
-            # 5. ALERTE CHURN (Simulation)
             if analytics["churn_risk"] > 80:
                 logger.critical(f"🚨 ALERTE CHURN DETECTEE ! Risque: {analytics['churn_risk']}% - Résumé: {analytics['summary']}")
-                # Ici, on pourrait appeler un webhook Slack/Discord ou envoyer un email
                 analytics["alert"] = "URGENT_RETENTION"
             
             return analytics
@@ -95,20 +69,16 @@ class AnalyticsService:
             return self._get_default_analytics()
 
     def _parse_analytics_response(self, response: str) -> dict:
-        """Parser la réponse JSON de Mistral avec nettoyage."""
         import re
         try:
-            # Nettoyage des balises markdown ```json ... ```
             clean_response = re.sub(r'```json\s*|\s*```', '', response).strip()
             
-            # Extraction du premier bloc JSON valide
             json_match = re.search(r'\{.*\}', clean_response, re.DOTALL)
             if json_match:
                 clean_response = json_match.group(0)
             
             data = json.loads(clean_response)
             
-            # Validation et valeurs par défaut
             return {
                 "sentiment": data.get("sentiment", "neutre"),
                 "category": data.get("category", "autre"),

@@ -1,11 +1,7 @@
-"""
-Module de classification LLM avec Mistral
-"""
 import json
 import logging
 from typing import List, Dict, Optional
 
-# Import optionnel de Mistral
 try:
     from mistralai import Mistral
 except ImportError:
@@ -29,12 +25,9 @@ from src.config import MISTRAL_API_KEY, MISTRAL_MODEL, LLM_BATCH_SIZE, LLM_MAX_R
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 class LLMClassificationError(Exception):
     pass
 
-
-# Prompt optimisé pour Mistral
 SYSTEM_PROMPT = """Tu es un expert en analyse de tweets clients pour un opérateur télécom.
 Analyse chaque tweet et renvoie UNIQUEMENT un JSON valide avec les champs suivants:
 - motif: une thématique parmi ["Technique", "Réseau", "Abonnement", "Facturation", "Service client", "Autre"]
@@ -57,35 +50,16 @@ USER_PROMPT_TEMPLATE = """Analyse ce tweet client et renvoie le JSON:
 
 JSON:"""
 
-
 def create_prompt(tweet_text: str) -> str:
-    """Crée le prompt pour un tweet"""
-    return USER_PROMPT_TEMPLATE.format(tweet_text=tweet_text[:500])  # Limite à 500 caractères
+    return USER_PROMPT_TEMPLATE.format(tweet_text=tweet_text[:500])
 
 
-@retry(
-    reraise=True,
-    stop=stop_after_attempt(LLM_MAX_RETRIES),
-    wait=wait_exponential(multiplier=1, min=2, max=30),
-    retry=retry_if_exception_type((LLMClassificationError, Exception)),
-)
-def classify_single_tweet(client: Mistral, tweet_text: str) -> str:
-    """
-    Classifie un seul tweet avec retry
-    Retourne la réponse brute du LLM (string JSON)
-    """
+@retry(reraise=True, stop=stop_after_attempt(LLM_MAX_RETRIES), wait=wait_exponential(multiplier=1, min=2, max=30), retry=retry_if_exception_type((LLMClassificationError, Exception)))
+def classify_one(client: Mistral, tweet_text: str) -> str:
     try:
         prompt = create_prompt(tweet_text)
         
-        response = client.chat.complete(
-            model=MISTRAL_MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.1,  # Faible température pour plus de cohérence
-            max_tokens=200
-        )
+        response = client.chat.complete(model=MISTRAL_MODEL, messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}], temperature=0.1, max_tokens=200)
         
         content = response.choices[0].message.content.strip()
         
@@ -99,38 +73,21 @@ def classify_single_tweet(client: Mistral, tweet_text: str) -> str:
         raise LLMClassificationError(str(e))
 
 
-def classify_batch(client: Mistral, tweets: List[str]) -> List[Dict[str, Optional[str]]]:
-    """
-    Classifie un batch de tweets
-    """
+def classify_tweets(client: Mistral, tweets: List[str]) -> List[Dict[str, Optional[str]]]:
     results = []
     
     for tweet in tweets:
         try:
-            raw_response = classify_single_tweet(client, tweet)
-            results.append({
-                "raw_response": raw_response,
-                "tweet": tweet
-            })
+            raw_response = classify_one(client, tweet)
+            results.append({"raw_response": raw_response, "tweet": tweet})
         except Exception as e:
             logger.warning(f"Échec classification pour un tweet: {e}")
-            results.append({
-                "raw_response": None,
-                "tweet": tweet,
-                "error": str(e)
-            })
+            results.append({"raw_response": None, "tweet": tweet, "error": str(e)})
     
     return results
 
 
-def classify_dataframe_batch(
-    client: Mistral,
-    texts: List[str],
-    batch_size: int = LLM_BATCH_SIZE
-) -> List[Dict[str, Optional[str]]]:
-    """
-    Classifie un DataFrame par batches pour éviter rate limits
-    """
+def classify_batch(client: Mistral, texts: List[str], batch_size: int = LLM_BATCH_SIZE) -> List[Dict[str, Optional[str]]]:
     all_results = []
     total_batches = (len(texts) + batch_size - 1) // batch_size
     
@@ -143,31 +100,22 @@ def classify_dataframe_batch(
         logger.info(f"Traitement batch {batch_num}/{total_batches} ({len(batch)} tweets)...")
         
         try:
-            batch_results = classify_batch(client, batch)
+            batch_results = classify_tweets(client, batch)
             all_results.extend(batch_results)
             
-            # Pause entre batches pour éviter rate limit
             if i + batch_size < len(texts):
                 import time
                 time.sleep(1)
                 
         except Exception as e:
             logger.error(f"Erreur batch {batch_num}: {e}")
-            # Ajouter des résultats vides pour ce batch
             for _ in batch:
-                all_results.append({
-                    "raw_response": None,
-                    "tweet": "",
-                    "error": str(e)
-                })
+                all_results.append({"raw_response": None, "tweet": "", "error": str(e)})
     
     return all_results
 
 
 def initialize_mistral_client() -> Mistral:
-    """
-    Initialise le client Mistral
-    """
     if Mistral is None:
         raise ImportError("mistralai n'est pas installé. Installez-le avec: pip install mistralai")
     

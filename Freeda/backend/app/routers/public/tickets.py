@@ -1,21 +1,8 @@
-"""
-Endpoints PUBLICS pour les Tickets - Frontend CLIENT
-
-Ces endpoints sont accessibles SANS authentification.
-Utilises par le frontend client pour :
-- Creer des tickets depuis le ChatBot
-- Suivre un ticket avec son ID
-- Ajouter des messages a un ticket
-
-Securite : Limite aux operations necessaires pour les clients
-"""
-
 from fastapi import APIRouter, HTTPException, Depends, Request
 from datetime import datetime
 from typing import Optional
 import uuid
 
-# Import des services
 from app.services.storage.interface import get_storage
 from app.core.config import SYSTEM_PROMPT, ENABLE_RAG
 from app.core.container import services
@@ -25,137 +12,103 @@ from app.core.ratelimit import check_ticket_rate_limit, check_message_rate_limit
 from app.models.schemas import TicketCreate, MessageCreate, StatusUpdate
 from app.services.ai.smart_reply import smart_reply
 
-
-
 router = APIRouter(prefix="/public/tickets", tags=["Public - Tickets"])
 
-# Initialisation des services
 storage = get_storage()
 
-async def get_system_prompt_with_context(user_message: str) -> str:
-    """Ajoute le contexte RAG au prompt systeme si active."""
+async def get_rag_context(user_msg: str) -> str:
     if not ENABLE_RAG or not services.rag_service:
         return SYSTEM_PROMPT
         
     try:
-        context = await services.rag_service.get_context_for_query(user_message)
-        if context:
-            return f"{SYSTEM_PROMPT}\n\nUtilise les informations suivantes pour repondre :\n{context}"
-    except Exception as e:
+        ctx = await services.rag_service.get_context(user_msg)
+        if ctx:
+            return f"{SYSTEM_PROMPT}\n\nUtilise les infos suivantes :\n{ctx}"
+    except:
         pass
         
     return SYSTEM_PROMPT
 
-
-def generate_ticket_id() -> str:
-    """Generer un ID de ticket unique et court pour les clients"""
-    # Format: FRE-XXXXXX (6 caracteres alphanumeriques)
-    short_id = str(uuid.uuid4())[:8].upper()
-    return f"FRE-{short_id}"
-
+def gen_id() -> str:
+    return f"FRE-{str(uuid.uuid4())[:8].upper()}"
 
 @router.post("/", response_model=dict, dependencies=[Depends(check_ticket_rate_limit)])
-async def create_ticket_public(request: TicketCreate):
-    """
-    Creer un nouveau ticket (PUBLIC - sans authentification)
+async def create_ticket(req: TicketCreate):
+    t_id = gen_id()
     
-    Utilise par : Frontend CLIENT (ChatBot, formulaires de contact)
-    """
-    initial_message = request.initial_message
-    customer_name = request.customer_name
-    channel = request.channel
-    
-    # Generer un ID unique
-    ticket_id = generate_ticket_id()
-    
-    # Creer le ticket
+    # Init ticket structure
     ticket = {
-        "ticket_id": ticket_id,
-        "initial_message": initial_message,
-        "customer_name": customer_name or "Anonyme",
-        "channel": channel,
+        "ticket_id": t_id,
+        "initial_message": req.initial_message,
+        "customer_name": req.customer_name or "Anonyme",
+        "channel": req.channel,
         "status": "nouveau",
         "created_at": datetime.utcnow().isoformat(),
-        "messages": [
-            {
-                "message_id": str(uuid.uuid4()),
-                "content": initial_message,
-                "author": customer_name or "Client",
-                "timestamp": datetime.utcnow().isoformat(),
-                "type": "client"
-            }
-        ],
-        "public": True  # Indique que c'est un ticket cree publiquement
+        "messages": [{
+            "message_id": str(uuid.uuid4()),
+            "content": req.initial_message,
+            "author": req.customer_name or "Client",
+            "timestamp": datetime.utcnow().isoformat(),
+            "type": "client"
+        }],
+        "public": True
     }
     
-    # Analyser le sentiment et l'urgence avec Mistral (Improved Analytics)
+    # Analytics part
     if services.analytics_service:
         try:
-            # On passe l'historique des messages (ici juste le premier)
-            messages_history = [{"role": "user", "content": initial_message}]
-            analytics_result = await services.analytics_service.analyze_ticket(messages_history)
-            ticket["analytics"] = analytics_result
+            hist = [{"role": "user", "content": req.initial_message}]
+            ticket["analytics"] = await services.analytics_service.analyze_ticket(hist)
         except Exception as e:
-            print(f"Erreur analytics: {e}")
+            print(f"Analytics error: {e}")
             ticket["analytics"] = {
-                "sentiment": "neutre",
-                "urgency": "moyenne",
-                "category": "autre",
-                "churn_risk": 0,
-                "summary": "Erreur analyse"
+                "sentiment": "neutre", "urgency": "moyenne", 
+                "category": "autre", "churn_risk": 0, "summary": "Erreur"
             }
     
-    # Generer une reponse IA si c'est un chat
-    assistant_message = None
-    if channel == "chat":
+    # AI Reply logic
+    bot_msg = None
+    if req.channel == "chat":
         try:
-            # 1. Tenter une reponse rapide (GRATUIT)
-            quick_response = smart_reply.get_quick_response(initial_message)
+            # Try smart reply first
+            quick_rep = smart_reply.get_quick_response(req.initial_message)
             
-            if quick_response:
-                # Utiliser la reponse rapide
-                assistant_text = quick_response
+            if quick_rep:
+                bot_text = quick_rep
             else:
-                # 2. Sinon, utiliser Mistral AI (PAYANT)
-                system_prompt = await get_system_prompt_with_context(initial_message)
-                messages_for_model = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": initial_message}
+                # Fallback to Mistral
+                sys_prompt = await get_rag_context(req.initial_message)
+                msgs = [
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": req.initial_message}
                 ]
                 
                 if services.mistral_client:
-                    assistant_text = await services.mistral_client.chat(messages_for_model)
-                    assistant_text = normalize_agent_signature(assistant_text)
+                    bot_text = await services.mistral_client.chat(msgs)
+                    bot_text = normalize_agent_signature(bot_text)
                 else:
-                    assistant_text = "Je prends note de votre demande. Un agent va vous repondre sous peu."
+                    bot_text = "Je prends note. Un agent va répondre."
 
-            assistant_message = {
+            bot_msg = {
                 "message_id": str(uuid.uuid4()),
-                "content": assistant_text,
+                "content": bot_text,
                 "author": "Assistant Free",
                 "timestamp": datetime.utcnow().isoformat(),
                 "type": "assistant"
             }
-            ticket["messages"].append(assistant_message)
+            ticket["messages"].append(bot_msg)
         except Exception as e:
-            print(f"Erreur IA/SmartReply: {e}")
+            print(f"AI Error: {e}")
 
-    # Sauvegarder dans DynamoDB
     await storage.save_ticket(ticket)
     
-    # Broadcast via WebSocket
-    # 1. Ticket created
-    await manager.broadcast(ticket_id, {
+    # WS Broadcasts
+    await manager.broadcast(t_id, {
         "type": "ticket_created", 
-        "ticket": {
-            "ticket_id": ticket_id, 
-            "status": ticket["status"], 
-            "created_at": ticket["created_at"]
-        }
+        "ticket": {"ticket_id": t_id, "status": ticket["status"], "created_at": ticket["created_at"]}
     })
     
-    # 2. User message
-    await manager.broadcast(ticket_id, {
+    await manager.broadcast(t_id, {
         "type": "new_message", 
         "message": {
             "id": ticket["messages"][0]["message_id"],
@@ -165,325 +118,214 @@ async def create_ticket_public(request: TicketCreate):
         }
     })
     
-    # 3. Assistant message (if any)
-    if assistant_message:
-        await manager.broadcast(ticket_id, {
+    if bot_msg:
+        await manager.broadcast(t_id, {
             "type": "new_message", 
             "message": {
-                "id": assistant_message["message_id"],
-                "content": assistant_message["content"],
+                "id": bot_msg["message_id"],
+                "content": bot_msg["content"],
                 "role": "assistant",
-                "timestamp": assistant_message["timestamp"]
+                "timestamp": bot_msg["timestamp"]
             }
         })
     
-    response = {
-        "ticket_id": ticket_id,
-        "message": "Ticket cree avec succes",
-        "tracking_url": f"/public/tickets/{ticket_id}",
+    resp = {
+        "ticket_id": t_id,
+        "message": "Ticket créé",
+        "tracking_url": f"/public/tickets/{t_id}",
         "estimated_response_time": "Sous 2 heures",
         "analytics": ticket.get("analytics")
     }
     
-    if assistant_message:
-        response["assistant_message"] = assistant_message
+    if bot_msg:
+        resp["assistant_message"] = bot_msg
         
-    return response
-
+    return resp
 
 @router.get("/{ticket_id}", response_model=dict)
-async def get_ticket_public(ticket_id: str):
-    """
-    Recuperer un ticket par son ID (PUBLIC)
+async def get_ticket(ticket_id: str):
+    t = await storage.get_ticket(ticket_id)
     
-    Utilise par : Frontend CLIENT (page de suivi)
+    if not t:
+        raise HTTPException(404, "Ticket introuvable")
     
-    Args:
-        ticket_id: ID du ticket (ex: FRE-A1B2C3D4)
-    
-    Returns:
-        Informations publiques du ticket (sans donnees sensibles)
-    """
-    
-    ticket = await storage.get_ticket(ticket_id)
-    
-    if not ticket:
-        raise HTTPException(
-            status_code=404,
-            detail="Ticket non trouve. Verifiez l'ID du ticket."
-        )
-    
-    # Ne retourner que les informations publiques
-    # (pas d'infos agents, pas de donnees internes)
-    public_ticket = {
-        "ticket_id": ticket["ticket_id"],
-        "status": ticket["status"],
-        "created_at": ticket["created_at"],
-        "customer_name": ticket.get("customer_name", "Anonyme"),
+    # Filter public info
+    res = {
+        "ticket_id": t["ticket_id"],
+        "status": t["status"],
+        "created_at": t["created_at"],
+        "customer_name": t.get("customer_name", "Anonyme"),
         "messages": [
             {
-                "message_id": msg["message_id"],
-                "content": msg["content"],
-                "author": msg["author"],
-                "timestamp": msg["timestamp"],
-                "type": msg["type"]
+                "message_id": m["message_id"],
+                "content": m["content"],
+                "author": m["author"],
+                "timestamp": m["timestamp"],
+                "type": m["type"]
             }
-            for msg in ticket.get("messages", [])
+            for m in t.get("messages", [])
         ],
-        "last_update": ticket.get("updated_at", ticket["created_at"])
+        "last_update": t.get("updated_at", t["created_at"])
     }
     
-    # Ajouter le statut en francais
-    status_labels = {
-        "nouveau": "Nouveau - En attente de prise en charge",
-        "en cours": "En cours - Un agent travaille sur votre demande",
-        "ferme": "Resolu - Votre demande a ete traitee"
+    labels = {
+        "nouveau": "Nouveau - En attente",
+        "en cours": "En cours - Prise en charge",
+        "ferme": "Résolu"
     }
-    public_ticket["status_label"] = status_labels.get(
-        ticket["status"], 
-        ticket["status"]
-    )
+    res["status_label"] = labels.get(t["status"], t["status"])
     
-    return public_ticket
-
+    return res
 
 @router.post("/{ticket_id}/messages", response_model=dict, dependencies=[Depends(check_message_rate_limit)])
-async def add_message_public(
-    ticket_id: str,
-    request: MessageCreate
-):
-    """
-    Ajouter un message a un ticket (PUBLIC)
+async def add_message(ticket_id: str, req: MessageCreate):
+    msg_content = req.message
+    author = req.author_name
     
-    Utilise par : Frontend CLIENT (reponse du client)
-    """
-    content = request.message
-    author_name = request.author_name
+    t = await storage.get_ticket(ticket_id)
+    if not t:
+        raise HTTPException(404, "Ticket introuvable")
     
-    # Verifier que le ticket existe
-    ticket = await storage.get_ticket(ticket_id)
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket non trouve")
+    if t["status"] == "ferme":
+        raise HTTPException(400, "Ticket fermé")
     
-    # Verifier que le ticket n'est pas ferme
-    if ticket["status"] == "ferme":
-        raise HTTPException(
-            status_code=400,
-            detail="Ce ticket est ferme. Veuillez creer un nouveau ticket si besoin."
-        )
-    
-    # Creer le message
-    message = {
+    new_msg = {
         "message_id": str(uuid.uuid4()),
-        "content": content,
-        "author": author_name or ticket.get("customer_name", "Client"),
+        "content": msg_content,
+        "author": author or t.get("customer_name", "Client"),
         "timestamp": datetime.utcnow().isoformat(),
         "type": "client"
     }
     
-    # Ajouter le message au ticket en memoire
-    if "messages" not in ticket:
-        ticket["messages"] = []
-    ticket["messages"].append(message)
+    if "messages" not in t:
+        t["messages"] = []
+    t["messages"].append(new_msg)
     
-    # Analyser le nouveau message et mettre a jour le ticket
+    # Update analytics
     if services.analytics_service:
         try:
-            # Recuperer l'historique complet pour une meilleure analyse
-            history = ticket.get("messages", [])
-            # Convertir pour l'analytics service
-            messages_history = []
-            for msg in history:
-                role = "assistant" if msg["type"] == "assistant" else "user"
-                messages_history.append({"role": role, "content": msg["content"]})
+            hist = []
+            for m in t.get("messages", []):
+                role = "assistant" if m["type"] == "assistant" else "user"
+                hist.append({"role": role, "content": m["content"]})
             
-            # Le message est deja dans l'historique maintenant
-            
-            analytics_result = await services.analytics_service.analyze_ticket(messages_history)
-            
-            # Mettre a jour les analytics du ticket
-            ticket["analytics"] = analytics_result
-            
-            # Ajouter le sentiment au message individuel (optionnel, pour compatibilite)
-            message["sentiment"] = analytics_result.get("sentiment", "neutre")
+            ana_res = await services.analytics_service.analyze_ticket(hist)
+            t["analytics"] = ana_res
+            new_msg["sentiment"] = ana_res.get("sentiment", "neutre")
             
         except Exception as e:
-            print(f"Erreur analyse message: {e}")
+            print(f"Analytics update error: {e}")
             
-    # Sauvegarder le ticket avec le nouveau message et les analytics
-    await storage.save_ticket(ticket)
+    await storage.save_ticket(t)
             
-
-        
-    # Generer une reponse IA
-    assistant_message = None
+    # AI Reply
+    bot_msg = None
     try:
-        # 1. Tenter une reponse rapide (GRATUIT)
-        quick_response = smart_reply.get_quick_response(content)
+        quick = smart_reply.get_quick_response(msg_content)
         
-        if quick_response:
-            assistant_text = quick_response
+        if quick:
+            bot_txt = quick
         else:
-            # 2. Sinon, utiliser Mistral AI (PAYANT)
-            # Recuperer l'historique pour le contexte
-            history = ticket.get("messages", [])
+            hist = t.get("messages", [])
+            sys_p = await get_rag_context(msg_content)
+            model_msgs = [{"role": "system", "content": sys_p}]
             
-            system_prompt = await get_system_prompt_with_context(content)
-            messages_for_model = [{"role": "system", "content": system_prompt}]
-            
-            # Ajouter les derniers messages au contexte (max 5)
-            for msg in history[-5:]:
-                role = "assistant" if msg["type"] == "assistant" else "user"
-                messages_for_model.append({"role": role, "content": msg["content"]})
+            # Context window: last 5 msgs
+            for m in hist[-5:]:
+                r = "assistant" if m["type"] == "assistant" else "user"
+                model_msgs.append({"role": r, "content": m["content"]})
                 
-            # Ajouter le message actuel
-            messages_for_model.append({"role": "user", "content": content})
+            model_msgs.append({"role": "user", "content": msg_content})
             
             if services.mistral_client:
-                assistant_text = await services.mistral_client.chat(messages_for_model)
-                assistant_text = normalize_agent_signature(assistant_text)
+                bot_txt = await services.mistral_client.chat(model_msgs)
+                bot_txt = normalize_agent_signature(bot_txt)
             else:
-                assistant_text = None
+                bot_txt = None
         
-        if assistant_text:
-            assistant_message = {
+        if bot_txt:
+            bot_msg = {
                 "message_id": str(uuid.uuid4()),
-                "content": assistant_text,
+                "content": bot_txt,
                 "author": "Assistant Free",
                 "timestamp": datetime.utcnow().isoformat(),
                 "type": "assistant"
             }
+            await storage.add_message(ticket_id, bot_msg)
             
-            await storage.add_message(ticket_id, assistant_message)
     except Exception as e:
-        print(f"Erreur IA/SmartReply: {e}")
+        print(f"SmartReply error: {e}")
         
-    # Broadcast via WebSocket
-    # 1. User message
+    # Broadcasts
     await manager.broadcast(ticket_id, {
         "type": "new_message", 
         "message": {
-            "id": message["message_id"],
-            "content": message["content"],
+            "id": new_msg["message_id"],
+            "content": new_msg["content"],
             "role": "user",
-            "timestamp": message["timestamp"]
+            "timestamp": new_msg["timestamp"]
         }
     })
     
-    # 2. Assistant message (if any)
-    if assistant_message:
+    if bot_msg:
         await manager.broadcast(ticket_id, {
             "type": "new_message", 
             "message": {
-                "id": assistant_message["message_id"],
-                "content": assistant_message["content"],
+                "id": bot_msg["message_id"],
+                "content": bot_msg["content"],
                 "role": "assistant",
-                "timestamp": assistant_message["timestamp"]
+                "timestamp": bot_msg["timestamp"]
             }
         })
     
-    response = {
-        "message": "Message ajoute avec succes",
-        "message_id": message["message_id"],
-        "timestamp": message["timestamp"]
+    ret = {
+        "message": "Message ajouté",
+        "message_id": new_msg["message_id"],
+        "timestamp": new_msg["timestamp"]
     }
     
-    if assistant_message:
-        response["assistant_message"] = assistant_message
+    if bot_msg:
+        ret["assistant_message"] = bot_msg
         
-    return response
-
+    return ret
 
 @router.get("/{ticket_id}/status", response_model=dict)
-async def get_ticket_status_public(ticket_id: str):
-    """
-    Recuperer uniquement le statut d un ticket (PUBLIC)
+async def get_status(ticket_id: str):
+    t = await storage.get_ticket(ticket_id)
+    if not t:
+        raise HTTPException(404, "Ticket introuvable")
     
-    Utilise par : Frontend CLIENT (verification rapide du statut)
-    
-    Args:
-        ticket_id: ID du ticket
-    
-    Returns:
-        Statut actuel du ticket
-    """
-    
-    ticket = await storage.get_ticket(ticket_id)
-    
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket non trouve")
-    
-    status_info = {
-        "nouveau": {
-            "label": "Nouveau",
-            "description": "Votre demande a ete enregistree et sera traitee rapidement.",
-            "color": "blue"
-        },
-        "en cours": {
-            "label": "En cours",
-            "description": "Un agent travaille actuellement sur votre demande.",
-            "color": "orange"
-        },
-        "ferme": {
-            "label": "Resolu",
-            "description": "Votre demande a ete traitee avec succes.",
-            "color": "green"
-        }
+    status_map = {
+        "nouveau": {"label": "Nouveau", "description": "En attente...", "color": "blue"},
+        "en cours": {"label": "En cours", "description": "Traitement en cours...", "color": "orange"},
+        "ferme": {"label": "Résolu", "description": "Terminé.", "color": "green"}
     }
     
-    current_status = ticket["status"]
+    curr = t["status"]
     
     return {
         "ticket_id": ticket_id,
-        "status": current_status,
-        "status_info": status_info.get(current_status, {
-            "label": current_status,
-            "description": "Statut en cours de traitement",
-            "color": "gray"
-        }),
-        "last_update": ticket.get("updated_at", ticket["created_at"]),
-        "message_count": len(ticket.get("messages", []))
+        "status": curr,
+        "status_info": status_map.get(curr, {"label": curr, "color": "gray"}),
+        "last_update": t.get("updated_at", t["created_at"]),
+        "message_count": len(t.get("messages", []))
     }
 
-
 @router.patch("/{ticket_id}/status", response_model=dict)
-async def update_ticket_status_public(
-    ticket_id: str,
-    update: StatusUpdate
-):
-    """
-    Mettre à jour le statut d'un ticket (PUBLIC)
-    
-    Permet au client de fermer son ticket.
-    Seul le statut 'fermé' est autorisé publiquement.
-    """
-    
+async def update_status(ticket_id: str, update: StatusUpdate):
     if update.status != "fermé":
-        raise HTTPException(
-            status_code=400, 
-            detail="Seule la fermeture du ticket est autorisée publiquement"
-        )
+        raise HTTPException(400, "Action non autorisée")
         
-    ticket = await storage.get_ticket(ticket_id)
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket non trouvé")
+    t = await storage.get_ticket(ticket_id)
+    if not t:
+        raise HTTPException(404, "Introuvable")
         
-    # Si déjà fermé, rien à faire
-    if ticket["status"] == "fermé":
-        return {"message": "Ticket déjà fermé", "status": "fermé"}
+    if t["status"] == "fermé":
+        return {"message": "Déjà fermé", "status": "fermé"}
         
-    # Mettre à jour le statut
     closed_at = datetime.utcnow().isoformat()
     await storage.update_ticket_status(ticket_id, "fermé", closed_at)
     
-    # Broadcast via WebSocket
-    await manager.broadcast(ticket_id, {
-        "type": "status_updated", 
-        "status": "fermé"
-    })
+    await manager.broadcast(ticket_id, {"type": "status_updated", "status": "fermé"})
     
-    return {
-        "message": "Ticket fermé avec succès",
-        "status": "fermé",
-        "closed_at": closed_at
-    }
+    return {"message": "Ticket fermé", "status": "fermé", "closed_at": closed_at}
