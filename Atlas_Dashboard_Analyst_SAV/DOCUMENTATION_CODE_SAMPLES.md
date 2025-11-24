@@ -38,7 +38,7 @@ Cette fonction orchestre plusieurs sous-tâches :
 2.  **Extraction** : On garde les emojis de côté car ils sont de forts marqueurs d'émotion, même si on les retire du texte principal pour simplifier la lecture.
 3.  **Traduction** : Si un tweet est en anglais ou espagnol, il est traduit pour que le modèle (et l'analyste) travaille sur une base unifiée en français.
 
-### 💡 Pourquoi ce choix ?
+###  Pourquoi ce choix ?
 *   **Séparation des concerns** : On sépare le texte "pour la machine" (traduit, brut) du texte "pour l'affichage" (nettoyé, sans URLs).
 *   **Robustesse** : Gérer la langue en amont évite d'envoyer du bruit au LLM ou de lui demander de traduire, ce qui consommerait plus de tokens et diluerait son attention sur la classification.
 
@@ -81,12 +81,12 @@ def classify_single_tweet(client: Mistral, tweet_text: str) -> str:
         raise LLMClassificationError(str(e))
 ```
 
-### 🔍 Explication
+### Explication
 *   **Décorateur `@retry`** : Utilise la librairie `tenacity`. Si l'API échoue (timeout, erreur 500), le code attend un peu (backoff exponentiel) et réessaie jusqu'à 3 fois.
 *   **Température 0.1** : On veut de la classification, pas de la poésie. Une température basse force le modèle à être déterministe et factuel.
 *   **Modèle `mistral-tiny`** : Suffisant pour de la classification simple, beaucoup moins cher et plus rapide que les gros modèles.
 
-### 💡 Pourquoi ce choix ?
+### Pourquoi ce choix ?
 *   **Fiabilité** : Les appels réseaux sont instables par nature. Sans mécanisme de retry, un batch de 1000 tweets planterait au moindre pépin réseau.
 *   **Coût/Perf** : Le choix du modèle et des paramètres (max_tokens) est optimisé pour traiter de gros volumes sans exploser le budget.
 
@@ -127,11 +127,11 @@ def parse_llm_response(raw_response: Optional[str]) -> Dict[str, str]:
         return DEFAULT_VALUES.copy()
 ```
 
-### 🔍 Explication
+### Explication
 *   **Extraction Regex** : Le LLM peut dire "Voici le JSON : { ... }". `json.loads` échouerait sur la phrase complète. La regex va chercher uniquement la partie `{...}`.
 *   **Normalisation** : Si le LLM hallucine un motif "Problème Wifi" alors que notre catégorie est "Technique", ou écrit "Positif" avec une majuscule, `normalize_value` corrige cela pour garder des données propres.
 
-### 💡 Pourquoi ce choix ?
+### Pourquoi ce choix ?
 *   **Qualité des données** : Pour faire des graphiques (camemberts, barres), il faut des catégories exactes. On ne peut pas avoir "Technique", "technique" et "Pb technique" comme 3 catégories différentes. Ce module garantit l'intégrité des données.
 
 ---
@@ -163,11 +163,11 @@ def enrich_with_llm(df, ...):
     return df
 ```
 
-### 🔍 Explication
+### Explication
 *   **Batching** : Au lieu d'appeler l'API tweet par tweet (trop lent) ou tout d'un coup (trop gros), on traite par petits groupes.
 *   **Checkpointing** : Si le script plante après 5000 tweets sur 10000, on sauvegarde l'état. Au prochain lancement, on ne reprend que les 5000 restants.
 
-### 💡 Pourquoi ce choix ?
+### Pourquoi ce choix ?
 *   **Performance** : Le batching permet de paralléliser (côté API) et de réduire l'overhead réseau.
 *   **Résilience** : Le checkpointing est indispensable pour les longs traitements (plusieurs heures). On ne veut pas tout recommencer à zéro en cas de coupure.
 
@@ -204,9 +204,9 @@ export function KPIGrid({ data }: KPIGridProps) {
 }
 ```
 
-### 🔍 Explication
+### Explication
 *   **Composants Réutilisables** : `KPICard` est défini une fois et réutilisé pour chaque métrique, assurant une cohérence visuelle.
 *   **Typage TypeScript** : `KPIGridProps` définit exactement quelles données sont attendues, évitant les bugs d'affichage si l'API change.
 
-### 💡 Pourquoi ce choix ?
+### Pourquoi ce choix ?
 *   **Expérience Utilisateur** : L'interface doit être immédiate. Les couleurs (rouge/vert) guident l'œil vers l'information importante (négatif/positif) sans effort cognitif.
